@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr  7 19:26:46 2020
+
+@author: noahlefrancois
+"""
+takeNextPlay = True
+
+while(takeNextPlay):
+    print("Answer the following questions to input the next play:")
+    Quarter = input("Quarter:")
+    Situation = input("Situation:")
+
+    print([Quarter, Situation])
+    
+    nextPlay = input("Predict Next Play?")
+    if (nextPlay.lower() == "no"):
+        takeNextPlay = False
