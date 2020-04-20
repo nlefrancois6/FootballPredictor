@@ -24,6 +24,7 @@ from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 from sklearn import ensemble
 import pandas as pd
+from sklearn import preprocessing
 import numpy as np
 
 plotPie = False
@@ -94,6 +95,7 @@ df.replace({'DEF PERSONNEL': DEFPERSONNELmapping},inplace=True)
 #df['prevPlayResult'] = prevPlayResult
 
 #Separate into training data set (Con U 2019 Games 1-7) and testing data set (Con U 2019 Game 8)
+#Random state is a seeding number
 training_df = df.sample(frac=0.9, random_state=1)
 indlist=list(training_df.index.values)
 
@@ -155,9 +157,17 @@ gbr = ensemble.GradientBoostingClassifier(n_estimators = 500, learning_rate = 0.
 
 gbr.fit(training_features, training_label)
 
-#Predict the run/pass percentage from our test set and evaluate the prediction accuracy
+#Predict the outcome & probabilities from our test set
 prediction = gbr.predict(testing_features)
+pred_probs = gbr.predict_proba(testing_features)
 
+#Get the label mappings for the prediction probabilities
+le = preprocessing.LabelEncoder()
+le.fit(training_label)
+label_map = le.classes_
+
+
+#Evaluate prediction accuracy
 accuracy = accuracy_score(testing_label, prediction)
 print("Accuracy: "+"{:.2%}".format(accuracy))
 
@@ -177,6 +187,7 @@ if plotImportance == True:
 if predNextPlay == True:
     #Give a set of features for the next play and predict the outcome
     #We probably want to take user input to fill out nextPlayFeatures
+    #Test Play: 2, -4, REG, 4, 2, 0, 2&7+, Open Field (-40 to 40), M, CONU, 15, UDM, 40
     print("Answer the following questions to input the next play:")
     Quarter = input("Quarter:")
     Score = input("Score Differential:")
@@ -209,8 +220,16 @@ if predNextPlay == True:
     dfNext.replace({'DEF PERSONNEL': DEFPERSONNELmapping},inplace=True)
 
     #Output the prediction
-    predNextPlay = gbr.predict(dfNext)
-    print("Most likely next play:" + predNextPlay)
+    pred_probs = gbr.predict_proba(dfNext)
+    
+    #Get the n most likely outcomes
+    n=3
+    pred_probs_next = pred_probs[0]
+    label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
+    next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
+
+    print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
+    
     
     
 

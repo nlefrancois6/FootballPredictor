@@ -18,8 +18,9 @@ from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 from sklearn import ensemble
 import pandas as pd
+from sklearn import preprocessing
 import numpy as np
-#import sys
+
 
 plotPie = True
 plotImportance = True
@@ -28,7 +29,7 @@ Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
 #Currently the data is ordered by field zone so when i split into testing&training sets it's not
 #randomly sampled. Need to either shuffle the csv entries or randomly sample from the df
-df = pd.read_csv("CONUv1.csv")
+df = pd.read_csv("CONUv3.csv")
 
 #Get the variables we care about from the dataframe
 df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','PLAY CATEGORY','PLAY TYPE','DEF TEAM','DEF PERSONNEL', 'DEF FRONT', 'ZONE THROWN', 'GN/LS']]
@@ -89,7 +90,7 @@ df.replace({'DEF PERSONNEL': DEFPERSONNELmapping},inplace=True)
 
 
 #Separate into training data set (Con U 2019 Games 1-7) and testing data set (Con U 2019 Game 8)
-training_df = df.sample(frac=0.9, random_state=1)
+training_df = df.sample(frac=0.8, random_state=1)
 indlist=list(training_df.index.values)
 
 testing_df = df.copy().drop(index=indlist)
@@ -109,11 +110,14 @@ if Out == 'PLAY TYPE':
         plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
         plt.show()
 elif Out == 'PLAY CATEGORY':
+    playCat = testing_df['PLAY CATEGORY'].unique().tolist()
+    playCatmapping = dict( zip(playCat,range(len(playCat))) )
     rel_freq = testing_df['PLAY CATEGORY'].value_counts()
     if plotPie == True:
         f1=plt.figure()
         #need to edit the labels to match the categories in our data
-        plt.pie(rel_freq, labels = ('RPO','DROPBACK','RUN','PA POCKET','QUICK','SCREEN/DRAW'), autopct='%.2f%%')
+        plt.pie(rel_freq, labels = ('RPO','DROPBACK','RUN','PA POCKET','QUICK','SCREEN/DRAW','SPECIAL'), autopct='%.2f%%')
+        plt.pie(rel_freq, autopct='%.2f%%')
         plt.title("Concordia 2019 play-type distribution")
         plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
         plt.show()
@@ -122,7 +126,7 @@ else:
     #sys.exit(['end'])
 
 
-features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','DEF TEAM','DEF PERSONNEL'] 
+features = ['SCORE DIFF. (O)','SITUATION (O)','DRIVE #','D&D','Field Zone','PERS','DEF TEAM','DEF PERSONNEL'] 
             
 #Define the features (input) and label (prediction output) for training set
 training_features = training_df[features]
@@ -151,8 +155,24 @@ gbr = ensemble.GradientBoostingClassifier(n_estimators = 500, learning_rate = 0.
 
 gbr.fit(training_features, training_label)
 
-#Predict the run/pass percentage from our test set and evaluate the prediction accuracy
+
+#Predict the outcome from our test set and evaluate the prediction accuracy
 prediction = gbr.predict(testing_features)
+pred_probs = gbr.predict_proba(testing_features)
+
+#Get the label mappings for the prediction probabilities
+le = preprocessing.LabelEncoder()
+le.fit(training_label)
+label_map = le.classes_
+
+#Get the n most likely outcomes
+n=3
+pred_probs_next = pred_probs[0]
+label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
+next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
+
+print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
+    
 
 accuracy = accuracy_score(testing_label, prediction)
 print("Accuracy: "+"{:.2%}".format(accuracy))
