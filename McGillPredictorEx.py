@@ -6,12 +6,8 @@ Created on Sat Feb 29 22:27:23 2020
 @author: Noah LeFrancois
 @email: noah.lefrancois@mail.mcgill.ca
 
-Using data for each play in Con U's 2019 season (obtained from Hudl), we want to predict 
-their play selection (run/pass, play type, zones targeted) on the next play given input info 
-such as clock, field position, personnel, down&distance, defensive formation, etc. 
-
-Here we use the first 7 games of their season to trainthe model, and test its predictions in
-the final game of their season.
+Basically branched McGillPredictorGoodData from this in mid April and now using this to throw out old 
+chunks of code I'm not currently using but don't want to delete yet.
 """
 
 from sklearn.metrics import accuracy_score
