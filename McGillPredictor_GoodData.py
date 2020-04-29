@@ -165,17 +165,33 @@ le = preprocessing.LabelEncoder()
 le.fit(training_label)
 label_map = le.classes_
 
-#Get the n most likely outcomes
 n=3
-pred_probs_next = pred_probs[0]
-label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
-next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
-
-print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
+#Accuracy Score for n top predictions
+def orderedPredictionAccuracy(next_outcomes_prob, label_map, next_testing_label, n):
+    pred_vector = []
+    for i in range(0,n):
+        pred_vector.append(label_map[int(next_outcomes_prob[i][1])])
+    prediction_score = sum(np.isin(pred_vector, next_testing_label))
     
+    return prediction_score
 
+def improved_Accuracy(pred_probs, label_map, testing_label, n):
+    prediction_scores = np.empty(len(testing_label))
+    for play in range(0, len(testing_label)):
+        pred_probs_next = pred_probs[play]
+        label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
+        next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
+        prediction_scores[play] = orderedPredictionAccuracy(next_outcomes_prob, label_map, testing_label.iloc[play], n)
+
+    improved_accuracy = np.mean(prediction_scores)
+    
+    return improved_accuracy
+
+
+improved_accuracy = improved_Accuracy(pred_probs, label_map, testing_label, n)
 accuracy = accuracy_score(testing_label, prediction)
 print("Accuracy: "+"{:.2%}".format(accuracy))
+print("Improved Accuracy: "+"{:.2%}".format(improved_accuracy))
 
 #Determine how strongly each feature affects the outcome
 feature_importance = gbr.feature_importances_.tolist()
