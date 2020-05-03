@@ -20,7 +20,7 @@ import numpy as np
 
 
 plotPie = False
-plotImportance = True
+plotImportance = False
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE'
 Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
@@ -123,9 +123,8 @@ else:
     #sys.exit(['end'])
 
 
-features = ['SCORE DIFF. (O)','SITUATION (O)','DRIVE #','D&D','Field Zone','DEF TEAM','DEF PERSONNEL'] 
-            
 #Define the features (input) and label (prediction output) for training set
+features = ['SCORE DIFF. (O)','SITUATION (O)','DRIVE #','D&D','Field Zone','DEF TEAM','DEF PERSONNEL']  
 training_features = training_df[features]
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
 
@@ -158,13 +157,20 @@ gbc.fit(training_features, training_label)
 rfc = ensemble.RandomForestClassifier(n_estimators = 10, max_depth=2, random_state=120)
 rfc.fit(training_features, training_label)
 
+#Soft Voting Predictor to combine GB and RF
+vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc)], voting='soft', weights=[2, 1])
+vc.fit(training_features, training_label)
 
-#Predict the outcome from our test set and evaluate the prediction accuracy
+
+#Predict the outcome from our test set and evaluate the prediction accuracy for each model
 predGB = gbc.predict(testing_features)
 pred_probsGB = gbc.predict_proba(testing_features)
 
 predRF = rfc.predict(testing_features)
 pred_probsRF = rfc.predict_proba(testing_features)
+
+predVC = vc.predict(testing_features)
+pred_probsVC = vc.predict_proba(testing_features)
 
 #Get the label mappings for the prediction probabilities
 le = preprocessing.LabelEncoder()
@@ -199,15 +205,19 @@ n=3
 improved_accuracyGB = improved_Accuracy(pred_probsGB, label_map, testing_label, n)
 accuracyGB = accuracy_score(testing_label, predGB)
 print("GBC Performance:")
-print("Accuracy: "+"{:.2%}".format(accuracyGB))
-print("Improved Accuracy: "+"{:.2%}".format(improved_accuracyGB))
+print("Accuracy: "+"{:.2%}".format(accuracyGB)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyGB))
 
 #Accuracy for RF
 improved_accuracyRF = improved_Accuracy(pred_probsRF, label_map, testing_label, n)
 accuracyRF = accuracy_score(testing_label, predRF)
 print("RF Performance:")
-print("Accuracy: "+"{:.2%}".format(accuracyRF))
-print("Improved Accuracy: "+"{:.2%}".format(improved_accuracyRF))
+print("Accuracy: "+"{:.2%}".format(accuracyRF)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyRF))
+
+#Accuracy for VC
+improved_accuracyVC = improved_Accuracy(pred_probsVC, label_map, testing_label, n)
+accuracyVC = accuracy_score(testing_label, predVC)
+print("Ensemble Performance:")
+print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyVC))
 
 if plotImportance == True:
     #Determine how strongly each feature affects the outcome
