@@ -6,8 +6,12 @@ Created on Sat Feb 29 22:27:23 2020
 @author: Noah LeFrancois
 @email: noah.lefrancois@mail.mcgill.ca
 
-Basically branched McGillPredictorGoodData from this in mid April and now using this to throw out old 
-chunks of code I'm not currently using but don't want to delete yet.
+Using data for each play in Con U's 2019 season (obtained from Hudl), we want to predict 
+their play selection (run/pass, play type, zones targeted) on the next play given input info 
+such as clock, field position, personnel, down&distance, defensive formation, etc. 
+
+Here we use the first 7 games of their season to trainthe model, and test its predictions in
+the final game of their season.
 """
 
 from sklearn.metrics import accuracy_score
@@ -153,6 +157,25 @@ prediction = gbr.predict(testing_features)
 nextPlayFeatures = [4,'2Min','-7','2','mid','43','6','15','32']
 predNextPlay = gbr.predict(nextPlayFeatures)
 print("Most likely next play:" + predNextPlay)
+"""
+
+"""
+#Predict the outcome from our test set and evaluate the prediction accuracy
+prediction = gbr.predict(testing_features)
+pred_probs = gbr.predict_proba(testing_features)
+
+#Get the label mappings for the prediction probabilities
+le = preprocessing.LabelEncoder()
+le.fit(training_label)
+label_map = le.classes_
+
+#Get the n most likely outcomes for the 1st play
+
+pred_probs_next = pred_probs[0]
+label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
+next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
+
+print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
 """
 
 accuracy = accuracy_score(testing_label, prediction)
