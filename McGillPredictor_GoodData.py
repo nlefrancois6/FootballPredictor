@@ -9,9 +9,6 @@ Created on Sat Feb 29 22:27:23 2020
 Using data for each play in Con U's 2019 season (obtained from Hudl), we want to predict 
 their play selection (run/pass, play type, zones targeted) on the next play given input info 
 such as clock, field position, personnel, down&distance, defensive personnel, etc. 
-
-Here we use the first 4 games of their season to train the model, and test its predictions in
-the final game of their season.
 """
 
 from sklearn.metrics import accuracy_score
@@ -22,7 +19,7 @@ from sklearn import preprocessing
 import numpy as np
 
 
-plotPie = True
+plotPie = False
 plotImportance = True
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE'
 Out = 'PLAY CATEGORY'
@@ -126,7 +123,7 @@ else:
     #sys.exit(['end'])
 
 
-features = ['SCORE DIFF. (O)','SITUATION (O)','DRIVE #','D&D','Field Zone','PERS','DEF TEAM','DEF PERSONNEL'] 
+features = ['SCORE DIFF. (O)','SITUATION (O)','DRIVE #','D&D','Field Zone','DEF TEAM','DEF PERSONNEL'] 
             
 #Define the features (input) and label (prediction output) for training set
 training_features = training_df[features]
@@ -151,21 +148,30 @@ elif Out == 'PLAY CATEGORY':
 
 #Train a Gradient Boosting Machine on the data
 #Using 500 for category, 200 for type roughly maximizes accuracy so far
-gbr = ensemble.GradientBoostingClassifier(n_estimators = 500, learning_rate = 0.02)
+#Default max_depth is 3, which works well for type, but a value of 1 gives 
+#better results for category
+gbc = ensemble.GradientBoostingClassifier(n_estimators = 500, learning_rate = 0.02, max_depth=1)
+gbc.fit(training_features, training_label)
 
-gbr.fit(training_features, training_label)
+#Train a Random Forest Machine on the data
+#max_depth=5 works well for type, value of 2 works well for category
+rfc = ensemble.RandomForestClassifier(n_estimators = 10, max_depth=2, random_state=120)
+rfc.fit(training_features, training_label)
 
 
 #Predict the outcome from our test set and evaluate the prediction accuracy
-prediction = gbr.predict(testing_features)
-pred_probs = gbr.predict_proba(testing_features)
+predGB = gbc.predict(testing_features)
+pred_probsGB = gbc.predict_proba(testing_features)
+
+predRF = rfc.predict(testing_features)
+pred_probsRF = rfc.predict_proba(testing_features)
 
 #Get the label mappings for the prediction probabilities
 le = preprocessing.LabelEncoder()
 le.fit(training_label)
 label_map = le.classes_
 
-n=3
+
 #Accuracy Score for n top predictions
 def orderedPredictionAccuracy(next_outcomes_prob, label_map, next_testing_label, n):
     pred_vector = []
@@ -187,21 +193,34 @@ def improved_Accuracy(pred_probs, label_map, testing_label, n):
     
     return improved_accuracy
 
+n=3
 
-improved_accuracy = improved_Accuracy(pred_probs, label_map, testing_label, n)
-accuracy = accuracy_score(testing_label, prediction)
-print("Accuracy: "+"{:.2%}".format(accuracy))
-print("Improved Accuracy: "+"{:.2%}".format(improved_accuracy))
+#Accuracy for GBC
+improved_accuracyGB = improved_Accuracy(pred_probsGB, label_map, testing_label, n)
+accuracyGB = accuracy_score(testing_label, predGB)
+print("GBC Performance:")
+print("Accuracy: "+"{:.2%}".format(accuracyGB))
+print("Improved Accuracy: "+"{:.2%}".format(improved_accuracyGB))
 
-#Determine how strongly each feature affects the outcome
-feature_importance = gbr.feature_importances_.tolist()
+#Accuracy for RF
+improved_accuracyRF = improved_Accuracy(pred_probsRF, label_map, testing_label, n)
+accuracyRF = accuracy_score(testing_label, predRF)
+print("RF Performance:")
+print("Accuracy: "+"{:.2%}".format(accuracyRF))
+print("Improved Accuracy: "+"{:.2%}".format(improved_accuracyRF))
 
 if plotImportance == True:
+    #Determine how strongly each feature affects the outcome
+    feature_importance = gbc.feature_importances_.tolist()
     f2=plt.figure()
     plt.bar(features,feature_importance)
     plt.title("gradient boosting classifier: feature importance")
     plt.xticks(rotation='vertical')
     plt.show()
-
-#predict = gbr.predict(testing_features)
-#print(predict)
+    
+    feature_importance = rfc.feature_importances_.tolist()
+    f3=plt.figure()
+    plt.bar(features,feature_importance)
+    plt.title("random forest classifier: feature importance")
+    plt.xticks(rotation='vertical')
+    plt.show()
