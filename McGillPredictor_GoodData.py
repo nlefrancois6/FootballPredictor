@@ -12,14 +12,13 @@ such as clock, field position, personnel, down&distance, defensive personnel, et
 """
 
 from sklearn.metrics import accuracy_score
-import matplotlib.pyplot as plt
 from sklearn import ensemble
 import pandas as pd
 from sklearn import preprocessing
-import numpy as np
+import DCPredict as DC
 
 
-plotPie = False
+plotPie = True
 plotImportance = False
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE'
 Out = 'PLAY CATEGORY'
@@ -96,35 +95,11 @@ testing_df = df.copy().drop(index=indlist)
 
 
 #Find the relative frequency of runs and passes as a baseline to compare our play type prediction to
-
-if Out == 'PLAY TYPE':
-    rel_freq = testing_df['PLAY TYPE'].value_counts()
-    if plotPie == True:
-        f1=plt.figure()
-        #need to edit the labels to match the categories in our data
-        plt.pie(rel_freq, labels = ('Pass','Run'), autopct='%.2f%%')
-        plt.title("Concordia 2019 play-type distribution")
-        plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-        plt.show()
-elif Out == 'PLAY CATEGORY':
-    playCat = testing_df['PLAY CATEGORY'].unique().tolist()
-    playCatmapping = dict( zip(playCat,range(len(playCat))) )
-    rel_freq = testing_df['PLAY CATEGORY'].value_counts()
-    if plotPie == True:
-        f1=plt.figure()
-        #need to edit the labels to match the categories in our data
-        plt.pie(rel_freq, labels = ('RPO','DROPBACK','RUN','PA POCKET','QUICK','SCREEN/DRAW','SPECIAL'), autopct='%.2f%%')
-        plt.pie(rel_freq, autopct='%.2f%%')
-        plt.title("Concordia 2019 play-type distribution")
-        plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-        plt.show()
-else:
-    print(Out + ' is not a supported output')
-    #sys.exit(['end'])
+DC.rawDataPie(Out, plotPie, testing_df)
 
 
 #Define the features (input) and label (prediction output) for training set
-features = ['SCORE DIFF. (O)','SITUATION (O)','DRIVE #','D&D','Field Zone','DEF TEAM','DEF PERSONNEL']  
+features = ['SCORE DIFF. (O)','SITUATION (O)','DRIVE #','D&D','PERS','Field Zone','DEF TEAM']  
 training_features = training_df[features]
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
 
@@ -177,60 +152,26 @@ le = preprocessing.LabelEncoder()
 le.fit(training_label)
 label_map = le.classes_
 
-
-#Accuracy Score for n top predictions
-def orderedPredictionAccuracy(next_outcomes_prob, label_map, next_testing_label, n):
-    pred_vector = []
-    for i in range(0,n):
-        pred_vector.append(label_map[int(next_outcomes_prob[i][1])])
-    prediction_score = sum(np.isin(pred_vector, next_testing_label))
-    
-    return prediction_score
-
-def improved_Accuracy(pred_probs, label_map, testing_label, n):
-    prediction_scores = np.empty(len(testing_label))
-    for play in range(0, len(testing_label)):
-        pred_probs_next = pred_probs[play]
-        label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
-        next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
-        prediction_scores[play] = orderedPredictionAccuracy(next_outcomes_prob, label_map, testing_label.iloc[play], n)
-
-    improved_accuracy = np.mean(prediction_scores)
-    
-    return improved_accuracy
-
+#Improved Accuracy Score for n top predictions
 n=3
 
 #Accuracy for GBC
-improved_accuracyGB = improved_Accuracy(pred_probsGB, label_map, testing_label, n)
+improved_accuracyGB = DC.improved_Accuracy(pred_probsGB, label_map, testing_label, n)
 accuracyGB = accuracy_score(testing_label, predGB)
 print("GBC Performance:")
 print("Accuracy: "+"{:.2%}".format(accuracyGB)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyGB))
 
 #Accuracy for RF
-improved_accuracyRF = improved_Accuracy(pred_probsRF, label_map, testing_label, n)
+improved_accuracyRF = DC.improved_Accuracy(pred_probsRF, label_map, testing_label, n)
 accuracyRF = accuracy_score(testing_label, predRF)
 print("RF Performance:")
 print("Accuracy: "+"{:.2%}".format(accuracyRF)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyRF))
 
 #Accuracy for VC
-improved_accuracyVC = improved_Accuracy(pred_probsVC, label_map, testing_label, n)
+improved_accuracyVC = DC.improved_Accuracy(pred_probsVC, label_map, testing_label, n)
 accuracyVC = accuracy_score(testing_label, predVC)
 print("Ensemble Performance:")
 print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyVC))
 
-if plotImportance == True:
-    #Determine how strongly each feature affects the outcome
-    feature_importance = gbc.feature_importances_.tolist()
-    f2=plt.figure()
-    plt.bar(features,feature_importance)
-    plt.title("gradient boosting classifier: feature importance")
-    plt.xticks(rotation='vertical')
-    plt.show()
-    
-    feature_importance = rfc.feature_importances_.tolist()
-    f3=plt.figure()
-    plt.bar(features,feature_importance)
-    plt.title("random forest classifier: feature importance")
-    plt.xticks(rotation='vertical')
-    plt.show()
+#Plot feature importance for both models
+DC.featureImportancePlot(plotImportance, gbc, rfc, features)

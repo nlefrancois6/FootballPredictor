@@ -6,17 +6,18 @@ Created on Sat Feb 29 22:27:23 2020
 @author: Noah LeFrancois
 @email: noah.lefrancois@mail.mcgill.ca
 
-Will update changes made to McGillPredictorEx here once validated, want to keep this file 
+Will update changes made to McGillPredictor_GoodData here once validated, want to keep this file 
 clean since it will be the end-product
 
 Using data for each play in Con U's 2019 season (obtained from Hudl), we want to predict 
 their play selection (run/pass, play type, zones targeted) on the next play given input info 
 such as clock, field position, personnel, down&distance, defensive formation, etc. 
 
-Here we use the first 7 games of their season to train the model, and test its predictions in
+I'd like to use the first 7 games of their season to train the model, and test its predictions in
 the final game of their season. Eventually, I'd like to update our model with each new play. 
 
-We're going to take user input for the features of the upcoming play and predict the next play
+By setting predNextPlay = True, we can take user input for the features of the upcoming play 
+and predict the 3 most likely outcomes.
 
 """
 
@@ -26,8 +27,9 @@ from sklearn import ensemble
 import pandas as pd
 from sklearn import preprocessing
 import numpy as np
+import DCPredict as DC
 
-plotPie = False
+plotPie = True
 plotImportance = False
 predNextPlay = True
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE'
@@ -35,7 +37,7 @@ Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
 #Currently the data is ordered by field zone so when i split into testing&training sets it's not
 #randomly sampled. Need to either shuffle the csv entries or randomly sample from the df
-df = pd.read_csv("CONUv1.csv")
+df = pd.read_csv("CONUv3.csv")
 
 #Get the variables we care about from the dataframe
 df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','PLAY CATEGORY','PLAY TYPE','DEF TEAM','DEF PERSONNEL', 'DEF FRONT']]
@@ -101,10 +103,8 @@ indlist=list(training_df.index.values)
 
 testing_df = df.copy().drop(index=indlist)
 
-#Shouldn't need to filter only run, pass like w/NFL data since we can select only offensive plays (no K or D). Need to make sure we're either excluding or handling dead plays though.
 
-
-#Find the relative frequency of runs and passes as a baseline to compare our play type prediction to
+#Find the relative frequency of each outcome as a baseline to compare our play type prediction to
 
 if Out == 'PLAY TYPE':
     rel_freq = testing_df['PLAY TYPE'].value_counts()
@@ -128,10 +128,10 @@ else:
     print(Out + ' is not a supported output')
     #sys.exit(['end'])
 
-
+features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','PERS','DEF TEAM']
 
 #Define the features (input) and label (prediction output) for training set
-training_features = training_df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','DEF TEAM','DEF PERSONNEL']]
+training_features = training_df[features]
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
 
 
@@ -142,7 +142,7 @@ elif Out == 'PLAY CATEGORY':
 
 
 #Define features and label for testing set
-testing_features = testing_df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','DEF TEAM','DEF PERSONNEL']]
+testing_features = testing_df[features]
 
 if Out == 'PLAY TYPE':
     testing_label = testing_df['PLAY TYPE']
@@ -153,7 +153,7 @@ elif Out == 'PLAY CATEGORY':
 
 #Train a Gradient Boosting Machine on the data
 #Using 500 for category, 200 for type roughly maximizes accuracy so far
-gbr = ensemble.GradientBoostingClassifier(n_estimators = 500, learning_rate = 0.02)
+gbr = ensemble.GradientBoostingClassifier(n_estimators = 500, learning_rate = 0.02, max_depth=1)
 
 gbr.fit(training_features, training_label)
 
@@ -166,14 +166,17 @@ le = preprocessing.LabelEncoder()
 le.fit(training_label)
 label_map = le.classes_
 
+#Improved Accuracy Score for n top predictions
+n=3
 
 #Evaluate prediction accuracy
-accuracy = accuracy_score(testing_label, prediction)
-print("Accuracy: "+"{:.2%}".format(accuracy))
+improved_accuracyGB = DC.improved_Accuracy(pred_probs, label_map, testing_label, n)
+accuracyGB = accuracy_score(testing_label, prediction)
+print("GBC Performance:")
+print("Accuracy: "+"{:.2%}".format(accuracyGB)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyGB))
 
-#Determine how strongly each feature affects the outcome
-features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','DEF TEAM','DEF PERSONNEL'] 
 
+#Determine how strongly each feature affects the outcome 
 feature_importance = gbr.feature_importances_.tolist()
 
 if plotImportance == True:
@@ -188,6 +191,9 @@ if predNextPlay == True:
     #Give a set of features for the next play and predict the outcome
     #We probably want to take user input to fill out nextPlayFeatures
     #Test Play: 2, -4, REG, 4, 2, 0, 2&7+, Open Field (-40 to 40), M, CONU, 15, UDM, 40
+    #3, -6, OPENERS 2ND, 8, 4, 1, 1&10, Open Field (-40 to 40),15, UDM
+    #Show Julien how the prediction for the second test play significantly improves
+    #when I tune the GBC params properly
     print("Answer the following questions to input the next play:")
     Quarter = input("Quarter:")
     Score = input("Score Differential:")
@@ -197,14 +203,14 @@ if predNextPlay == True:
     firstDownNum = input("1st DN #:")
     DD = input("D&D:")
     FieldZone = input("Field Zone:")
-    Hash = input("Hash:")
-    OTeam = input("Offensive Team:")
+    #Hash = input("Hash:")
+    #OTeam = input("Offensive Team:")
     Pers = input("Offensive Personel:")
     DTeam = input("Defensive Team:")
-    DPers = input("Defensive Personnel:")
+    #DPers = input("Defensive Personnel:")
 
 
-    nextPlayFeatures = [Quarter, Score, Situation, DriveNum, DrivePlayNum, firstDownNum, DD, FieldZone, Hash, OTeam, Pers, DTeam, DPers]
+    nextPlayFeatures = [Quarter, Score, Situation, DriveNum, DrivePlayNum, firstDownNum, DD, FieldZone, Pers, DTeam]
     dfNext = pd.DataFrame([nextPlayFeatures], columns=features)
     
     #Relabel the feature strings with a numerical mapping
