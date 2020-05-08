@@ -1,24 +1,17 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Sat Feb 29 22:27:23 2020
-
 @author: Noah LeFrancois
 @email: noah.lefrancois@mail.mcgill.ca
-
 Will update changes made to McGillPredictor_GoodData here once validated, want to keep this file 
 clean since it will be the end-product
-
 Using data for each play in Con U's 2019 season (obtained from Hudl), we want to predict 
 their play selection (run/pass, play type, zones targeted) on the next play given input info 
 such as clock, field position, personnel, down&distance, defensive formation, etc. 
-
 I'd like to use the first 7 games of their season to train the model, and test its predictions in
 the final game of their season. Eventually, I'd like to update our model with each new play. 
-
 By setting predNextPlay = True, we can take user input for the features of the upcoming play 
 and predict the 3 most likely outcomes.
-
 """
 
 from sklearn.metrics import accuracy_score
@@ -192,14 +185,14 @@ if predNextPlay == True:
     layout = [  [sg.Text('Enter Next Play Information')],
             [sg.Text('Quarter'), sg.Combo(['1', '2', '3', '4'])],
             [sg.InputText('Score Differential')],
-            [sg.Text('Situation'), sg.Combo(['Regular', 'Openers 1st Half', 'Openers 2nd Half', '2 Minute'])],
+            [sg.Text('Situation'), sg.Combo(['REG', 'OPENERS 1ST', 'OPENERS 2ND', '2 MIN'])],
             [sg.InputText('Drive Number')],
             [sg.InputText('Drive Play Number')],
             [sg.InputText('1st Downs in Drive')],
             [sg.Text('Down&Distance'), sg.Combo(['0&10','1&10', '1&11+', '1&9-', '2&2-', '2&3-6', '2&7+','3&2-','3&3-6','3&7+'])],
             [sg.Text('Field Position'), sg.Combo(['Backed Up (-1 to -19)', 'Coming Out (-20 to -39)','Open Field (-40 to 40)', 'Field Goal Fringe (39 to 21)', 'Red Zone (20 to 11)', 'Hot Zone (10 to 5)', 'Goal Line (4 to 1)'])],
-            [sg.Text('Offensive Personnel'), sg.Combo(['15', '24 BIG', '24 SPEED', '33 JUMBO', '42'])]
-            [sg.Text('Defensive Team'), sg.Combo(['UDM', 'SHERB', 'MCGILL', 'LVL'])]
+            [sg.Text('Offensive Personnel'), sg.Combo(['15', '24 BIG', '24 SPEED', '33 JUMBO', '42'])],
+            [sg.Text('Defensive Team'), sg.Combo(['UDM', 'SHERB', 'MCGILL', 'LVL'])],
             [sg.Button('Predict Next Play')] ]
     # Create the Window
     window = sg.Window('Window Title', layout)
@@ -208,7 +201,7 @@ if predNextPlay == True:
         event, values = window.read()
         if event in (None, 'Cancel'):	# if user closes window or clicks cancel
             break
-        print('You entered ', values)
+        #print('You entered ', values)
     
         qtr = values[0]
         score = values[1]
@@ -220,6 +213,7 @@ if predNextPlay == True:
         fieldZone = values[7]
         pers = values[8]
         defTeam = values[9]
+        #defTeam = 'UDM'
     
         if event=='Predict Next Play':
             nextPlayFeatures = [qtr, score, situation, driveNum, drivePlayNum, firstDownNum, dd, fieldZone, pers, defTeam]
@@ -247,9 +241,7 @@ if predNextPlay == True:
             next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
 
             print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
-            break
+            
     
     window.close()
-    
-    
 
