@@ -184,18 +184,19 @@ if predNextPlay == True:
     sg.theme('DarkBrown4')
     layout = [  [sg.Text('Enter Next Play Information')],
             [sg.Text('Quarter'), sg.Combo(['1', '2', '3', '4'])],
-            [sg.InputText('Score Differential')],
+            [sg.Text('Score Differential'), sg.Slider(range=(-50, 50), orientation='h', size=(25, 20), default_value=0)],
             [sg.Text('Situation'), sg.Combo(['REG', 'OPENERS 1ST', 'OPENERS 2ND', '2 MIN'])],
-            [sg.InputText('Drive Number')],
-            [sg.InputText('Drive Play Number')],
-            [sg.InputText('1st Downs in Drive')],
+            [sg.Text('Drive Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1)],
+            [sg.Text('Drive Play Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1)],
+            [sg.Text('1st Downs in Drive'), sg.Slider(range=(1, 10), orientation='h', size=(25, 20), default_value=1)],
             [sg.Text('Down&Distance'), sg.Combo(['0&10','1&10', '1&11+', '1&9-', '2&2-', '2&3-6', '2&7+','3&2-','3&3-6','3&7+'])],
             [sg.Text('Field Position'), sg.Combo(['Backed Up (-1 to -19)', 'Coming Out (-20 to -39)','Open Field (-40 to 40)', 'Field Goal Fringe (39 to 21)', 'Red Zone (20 to 11)', 'Hot Zone (10 to 5)', 'Goal Line (4 to 1)'])],
             [sg.Text('Offensive Personnel'), sg.Combo(['15', '24 BIG', '24 SPEED', '33 JUMBO', '42'])],
-            [sg.Text('Defensive Team'), sg.Combo(['UDM', 'SHERB', 'MCGILL', 'LVL'])],
-            [sg.Button('Predict Next Play')] ]
+            [sg.Text('Defensive Team'), sg.Combo(['UDM', 'SHER', 'MCGILL', 'LVL'])],
+            [sg.Button('Predict Next Play')],
+            [sg.Output(size=(75, 10), font=('Helvetica 10'))] ]
     # Create the Window
-    window = sg.Window('Window Title', layout)
+    window = sg.Window('LeFrancois DC Play Predictor', layout)
     # Event Loop to process "events" and get the "values" of the inputs
     while True:
         event, values = window.read()
