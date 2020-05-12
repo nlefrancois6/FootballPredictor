@@ -13,26 +13,28 @@ such as clock, field position, personnel, down&distance, defensive personnel, et
 
 from sklearn.metrics import accuracy_score
 from sklearn import ensemble
+from sklearn.svm import SVC
 import pandas as pd
 from sklearn import preprocessing
 import DCPredict as DC
 
 
-plotPie = True
+plotPie = False
 plotImportance = False
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE'
 Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
 #Currently the data is ordered by field zone so when i split into testing&training sets it's not
 #randomly sampled. Need to either shuffle the csv entries or randomly sample from the df
-df = pd.read_csv("CONUv3.csv")
+df = pd.read_csv("CONUv4.csv")
 
 #Get the variables we care about from the dataframe
-df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','PLAY CATEGORY','PLAY TYPE','DEF TEAM','DEF PERSONNEL', 'DEF FRONT', 'ZONE THROWN', 'GN/LS']]
+df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','PLAY CATEGORY','PLAY TYPE','DEF TEAM']]
 
 #Handle empty entries
 #df = df.replace(np.nan, 'REG', regex=True)
 df['SITUATION (O)'].fillna('REG', inplace=True)
+df = df.dropna()
 
 #I'd like to compute the yards gained, play type, and result from the previous play and add them as an input for the current play
 #df['prevYards'] = prevYards
@@ -40,10 +42,6 @@ df['SITUATION (O)'].fillna('REG', inplace=True)
 #df['prevPlayResult'] = prevPlayResult
 
 #Relabel the feature strings to number them so the GBR can read them
-formations = df['OFF FORM'].unique().tolist()
-formationmapping = dict( zip(formations,range(len(formations))) )
-df.replace({'OFF FORM': formationmapping},inplace=True)
-
 situation = df['SITUATION (O)'].unique().tolist()
 situationmapping = dict( zip(situation,range(len(situation))) )
 df.replace({'SITUATION (O)': situationmapping},inplace=True)
@@ -72,21 +70,10 @@ PERS = df['PERS'].unique().tolist()
 PERSmapping = dict( zip(PERS,range(len(PERS))) )
 df.replace({'PERS': PERSmapping},inplace=True)
 
-BACKFSET = df['BACKF SET'].unique().tolist()
-BACKFSETmapping = dict( zip(BACKFSET,range(len(BACKFSET))) )
-df.replace({'BACKF SET': BACKFSETmapping},inplace=True)
-
-DEFPERSONNEL = df['DEF PERSONNEL'].unique().tolist()
-DEFPERSONNELmapping = dict( zip(DEFPERSONNEL,range(len(DEFPERSONNEL))) )
-df.replace({'DEF PERSONNEL': DEFPERSONNELmapping},inplace=True)
-
-#DEFFRONT = df['DEF FRONT'].unique().tolist()
-#DEFFRONTmapping = dict( zip(DEFFRONT,range(len(DEFFRONT))) )
-#df.replace({'DEF FRONT': DEFFRONTmapping},inplace=True)
 
 
 #Separate into training data set (Con U 2019 Games 1-7) and testing data set (Con U 2019 Game 8)
-training_df = df.sample(frac=0.8, random_state=1)
+training_df = df.sample(frac=0.7, random_state=1)
 indlist=list(training_df.index.values)
 
 testing_df = df.copy().drop(index=indlist)
@@ -94,12 +81,12 @@ testing_df = df.copy().drop(index=indlist)
 #Shouldn't need to filter only run, pass like w/NFL data since we can select only offensive plays (no K or D). Need to make sure we're either excluding or handling dead plays though.
 
 
-#Find the relative frequency of runs and passes as a baseline to compare our play type prediction to
+#Find the relative frequency of labels as a baseline to compare our play type prediction to
 DC.rawDataPie(Out, plotPie, testing_df)
 
 
 #Define the features (input) and label (prediction output) for training set
-features = ['SCORE DIFF. (O)','SITUATION (O)','DRIVE #','D&D','PERS','Field Zone','DEF TEAM']  
+features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #', '1ST DN #','D&D','Field Zone','PERS','DEF TEAM']  
 training_features = training_df[features]
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
 
@@ -119,7 +106,6 @@ elif Out == 'PLAY CATEGORY':
     testing_label = testing_df['PLAY CATEGORY']
 
 
-
 #Train a Gradient Boosting Machine on the data
 #Using 500 for category, 200 for type roughly maximizes accuracy so far
 #Default max_depth is 3, which works well for type, but a value of 1 gives 
@@ -132,8 +118,16 @@ gbc.fit(training_features, training_label)
 rfc = ensemble.RandomForestClassifier(n_estimators = 10, max_depth=2, random_state=120)
 rfc.fit(training_features, training_label)
 
+#Can get really good (~77.5%) ImpAcc with BC, but bad (~37-40%) Acc 
+bcc = ensemble.BaggingClassifier(base_estimator=SVC(), n_estimators=500, random_state=0, max_samples=50, max_features = 10, bootstrap_features = True)
+bcc.fit(training_features, training_label)
+
+#Train Extra Trees classifier on the data
+etc = ensemble.ExtraTreesClassifier(n_estimators=500, max_depth=5, random_state=0)
+etc.fit(training_features, training_label)
+
 #Soft Voting Predictor to combine GB and RF
-vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc)], voting='soft', weights=[2, 1])
+vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('BC', bcc), ('ET', etc)], voting='soft', weights=[8, 0, 1, 4])
 vc.fit(training_features, training_label)
 
 
@@ -143,6 +137,12 @@ pred_probsGB = gbc.predict_proba(testing_features)
 
 predRF = rfc.predict(testing_features)
 pred_probsRF = rfc.predict_proba(testing_features)
+
+predBC = bcc.predict(testing_features)
+pred_probsBC = bcc.predict_proba(testing_features)
+
+predET = etc.predict(testing_features)
+pred_probsET = etc.predict_proba(testing_features)
 
 predVC = vc.predict(testing_features)
 pred_probsVC = vc.predict_proba(testing_features)
@@ -167,6 +167,18 @@ accuracyRF = accuracy_score(testing_label, predRF)
 print("RF Performance:")
 print("Accuracy: "+"{:.2%}".format(accuracyRF)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyRF))
 
+#Accuracy for BC
+improved_accuracyBC = DC.improved_Accuracy(pred_probsBC, label_map, testing_label, n)
+accuracyBC = accuracy_score(testing_label, predBC)
+print("BC Performance:")
+print("Accuracy: "+"{:.2%}".format(accuracyBC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyBC))
+
+#Accuracy for ET
+improved_accuracyET = DC.improved_Accuracy(pred_probsET, label_map, testing_label, n)
+accuracyET = accuracy_score(testing_label, predET)
+print("ET Performance:")
+print("Accuracy: "+"{:.2%}".format(accuracyET)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyET))
+
 #Accuracy for VC
 improved_accuracyVC = DC.improved_Accuracy(pred_probsVC, label_map, testing_label, n)
 accuracyVC = accuracy_score(testing_label, predVC)
@@ -174,4 +186,4 @@ print("Ensemble Performance:")
 print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyVC))
 
 #Plot feature importance for both models
-DC.featureImportancePlot(plotImportance, gbc, rfc, features)
+DC.featureImportancePlot(plotImportance, gbc, features)

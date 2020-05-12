@@ -15,30 +15,32 @@ and predict the 3 most likely outcomes.
 """
 
 from sklearn.metrics import accuracy_score
-import matplotlib.pyplot as plt
 from sklearn import ensemble
+from sklearn.svm import SVC
 import pandas as pd
 from sklearn import preprocessing
 import numpy as np
 import DCPredict as DC
 import PySimpleGUI as sg
 
+
 plotPie = False
 plotImportance = False
-predNextPlay = True
+predNextPlay = False
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE'
 Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
 #Currently the data is ordered by field zone so when i split into testing&training sets it's not
 #randomly sampled. Need to either shuffle the csv entries or randomly sample from the df
-df = pd.read_csv("CONUv3.csv")
+df = pd.read_csv("CONUv4.csv")
 
 #Get the variables we care about from the dataframe
-df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','PLAY CATEGORY','PLAY TYPE','DEF TEAM','DEF PERSONNEL', 'DEF FRONT']]
+df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','PLAY CATEGORY','PLAY TYPE','DEF TEAM','DEF PERSONNEL', 'DEF FRONT', 'RESULT']]
 
 #Handle empty entries
-#df = df.replace(np.nan, 'REG', regex=True)
 df['SITUATION (O)'].fillna('REG', inplace=True)
+df['RESULT'].fillna('Rush', inplace=True)
+df = df.dropna()
 
 #Relabel the feature strings to number them so the GBR can read them
 formations = df['OFF FORM'].unique().tolist()
@@ -81,9 +83,6 @@ DEFPERSONNEL = df['DEF PERSONNEL'].unique().tolist()
 DEFPERSONNELmapping = dict( zip(DEFPERSONNEL,range(len(DEFPERSONNEL))) )
 df.replace({'DEF PERSONNEL': DEFPERSONNELmapping},inplace=True)
 
-#DEFFRONT = df['DEF FRONT'].unique().tolist()
-#DEFFRONTmapping = dict( zip(DEFFRONT,range(len(DEFFRONT))) )
-#df.replace({'DEF FRONT': DEFFRONTmapping},inplace=True)
 
 #I'd like to compute the yards gained, play type, and result from the previous play and add them as an input for the current play
 #df['prevYards'] = prevYards
@@ -92,35 +91,14 @@ df.replace({'DEF PERSONNEL': DEFPERSONNELmapping},inplace=True)
 
 #Separate into training data set (Con U 2019 Games 1-7) and testing data set (Con U 2019 Game 8)
 #Random state is a seeding number
-training_df = df.sample(frac=0.9, random_state=1)
+training_df = df.sample(frac=0.8, random_state=1)
 indlist=list(training_df.index.values)
 
 testing_df = df.copy().drop(index=indlist)
 
 
-#Find the relative frequency of each outcome as a baseline to compare our play type prediction to
-
-if Out == 'PLAY TYPE':
-    rel_freq = testing_df['PLAY TYPE'].value_counts()
-    if plotPie == True:
-        f1=plt.figure()
-        #need to edit the labels to match the categories in our data
-        plt.pie(rel_freq, labels = ('Pass','Run'), autopct='%.2f%%')
-        plt.title("Concordia 2019 play-type distribution")
-        plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-        plt.show()
-elif Out == 'PLAY CATEGORY':
-    rel_freq = testing_df['PLAY CATEGORY'].value_counts()
-    if plotPie == True:
-        f1=plt.figure()
-        #need to edit the labels to match the categories in our data
-        plt.pie(rel_freq, labels = ('RPO','DROPBACK','RUN','PA POCKET','QUICK','SCREEN/DRAW'), autopct='%.2f%%')
-        plt.title("Concordia 2019 play-type distribution")
-        plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-        plt.show()
-else:
-    print(Out + ' is not a supported output')
-    #sys.exit(['end'])
+#Find the relative frequency of labels as a baseline to compare our play type prediction to
+DC.rawDataPie(Out, plotPie, testing_df)
 
 features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','PERS','DEF TEAM']
 
@@ -147,13 +125,45 @@ elif Out == 'PLAY CATEGORY':
 
 #Train a Gradient Boosting Machine on the data
 #Using 500 for category, 200 for type roughly maximizes accuracy so far
-gbr = ensemble.GradientBoostingClassifier(n_estimators = 500, learning_rate = 0.02, max_depth=1)
+#Default max_depth is 3, which works well for type, but a value of 1 gives 
+#better results for category
+gbc = ensemble.GradientBoostingClassifier(n_estimators = 500, learning_rate = 0.02, max_depth=1)
+gbc.fit(training_features, training_label)
 
-gbr.fit(training_features, training_label)
+#Train a Random Forest Machine on the data
+#max_depth=5 works well for type, value of 2 works well for category
+rfc = ensemble.RandomForestClassifier(n_estimators = 10, max_depth=2, random_state=120)
+rfc.fit(training_features, training_label)
 
-#Predict the outcome & probabilities from our test set
-prediction = gbr.predict(testing_features)
-pred_probs = gbr.predict_proba(testing_features)
+#Can get really good (~77.5%) ImpAcc with BC, but bad (~37-40%) Acc 
+bcc = ensemble.BaggingClassifier(base_estimator=SVC(), n_estimators=500, random_state=0, max_samples=50, max_features = 10, bootstrap_features = True)
+bcc.fit(training_features, training_label)
+
+#Train Extra Trees classifier on the data
+etc = ensemble.ExtraTreesClassifier(n_estimators=500, max_depth=5, random_state=0)
+etc.fit(training_features, training_label)
+
+#Soft Voting Predictor to combine GB and RF
+#8, 4, 1, 4
+vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('BC', bcc), ('ET', etc)], voting='soft', weights=[8, 0, 1, 4])
+vc.fit(training_features, training_label)
+
+
+#Predict the outcome from our test set and evaluate the prediction accuracy for each model
+predGB = gbc.predict(testing_features)
+pred_probsGB = gbc.predict_proba(testing_features)
+
+predRF = rfc.predict(testing_features)
+pred_probsRF = rfc.predict_proba(testing_features)
+
+predBC = bcc.predict(testing_features)
+pred_probsBC = bcc.predict_proba(testing_features)
+
+predET = etc.predict(testing_features)
+pred_probsET = etc.predict_proba(testing_features)
+
+predVC = vc.predict(testing_features)
+pred_probsVC = vc.predict_proba(testing_features)
 
 #Get the label mappings for the prediction probabilities
 le = preprocessing.LabelEncoder()
@@ -163,36 +173,46 @@ label_map = le.classes_
 #Improved Accuracy Score for n top predictions
 n=3
 
-#Evaluate prediction accuracy
-improved_accuracyGB = DC.improved_Accuracy(pred_probs, label_map, testing_label, n)
-accuracyGB = accuracy_score(testing_label, prediction)
-print("GBC Performance:")
-print("Accuracy: "+"{:.2%}".format(accuracyGB)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyGB))
+#Accuracy for GBC
+improved_accuracyGB = DC.improved_Accuracy(pred_probsGB, label_map, testing_label, n)
+accuracyGB = accuracy_score(testing_label, predGB)
+
+#Accuracy for RF
+improved_accuracyRF = DC.improved_Accuracy(pred_probsRF, label_map, testing_label, n)
+accuracyRF = accuracy_score(testing_label, predRF)
+
+#Accuracy for BC
+improved_accuracyBC = DC.improved_Accuracy(pred_probsBC, label_map, testing_label, n)
+accuracyBC = accuracy_score(testing_label, predBC)
+
+#Accuracy for ET
+improved_accuracyET = DC.improved_Accuracy(pred_probsET, label_map, testing_label, n)
+accuracyET = accuracy_score(testing_label, predET)
+
+#Accuracy for VC
+improved_accuracyVC = DC.improved_Accuracy(pred_probsVC, label_map, testing_label, n)
+accuracyVC = accuracy_score(testing_label, predVC)
+print("Ensemble Performance:")
+print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyVC))
 
 
-#Determine how strongly each feature affects the outcome 
-feature_importance = gbr.feature_importances_.tolist()
-
-if plotImportance == True:
-    f2=plt.figure()
-    plt.bar(features,feature_importance)
-    plt.title("gradient boosting classifier: feature importance")
-    plt.xticks(rotation='vertical')
-    plt.show()
+#Plot feature importance for both models
+DC.featureImportancePlot(plotImportance, gbc, features)
 
 if predNextPlay == True:
     sg.theme('DarkBrown4')
+    #Will need to read the possible inputs out of df to avoid errors when we get a formation we haven't seen before
     layout = [  [sg.Text('Enter Next Play Information')],
             [sg.Text('Quarter'), sg.Combo(['1', '2', '3', '4'])],
-            [sg.Text('Score Differential'), sg.Slider(range=(-50, 50), orientation='h', size=(25, 20), default_value=0)],
-            [sg.Text('Situation'), sg.Combo(['REG', 'OPENERS 1ST', 'OPENERS 2ND', '2 MIN'])],
-            [sg.Text('Drive Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1)],
-            [sg.Text('Drive Play Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1)],
-            [sg.Text('1st Downs in Drive'), sg.Slider(range=(1, 10), orientation='h', size=(25, 20), default_value=1)],
-            [sg.Text('Down&Distance'), sg.Combo(['0&10','1&10', '1&11+', '1&9-', '2&2-', '2&3-6', '2&7+','3&2-','3&3-6','3&7+'])],
-            [sg.Text('Field Position'), sg.Combo(['Backed Up (-1 to -19)', 'Coming Out (-20 to -39)','Open Field (-40 to 40)', 'Field Goal Fringe (39 to 21)', 'Red Zone (20 to 11)', 'Hot Zone (10 to 5)', 'Goal Line (4 to 1)'])],
-            [sg.Text('Offensive Personnel'), sg.Combo(['15', '24 BIG', '24 SPEED', '33 JUMBO', '42'])],
-            [sg.Text('Defensive Team'), sg.Combo(['UDM', 'SHER', 'MCGILL', 'LVL'])],
+            [sg.Text('Score Differential'), sg.Slider(range=(-45, 45), orientation='h', size=(25, 20), default_value=0, tick_interval=15)],
+            [sg.Text('Situation'), sg.Combo(situation)],
+            [sg.Text('Drive Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1, tick_interval=9)],
+            [sg.Text('Drive Play Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1, tick_interval=9)],
+            [sg.Text('1st Downs in Drive'), sg.Slider(range=(1, 10), orientation='h', size=(25, 20), default_value=1, tick_interval=2)],
+            [sg.Text('Down&Distance'), sg.Combo(DD)],
+            [sg.Text('Field Position'), sg.Combo(FieldZone)],
+            [sg.Text('Offensive Personnel'), sg.Combo(PERS)],
+            [sg.Text('Defensive Team'), sg.Combo(defenseTeams)],
             [sg.Button('Predict Next Play')],
             [sg.Output(size=(75, 10), font=('Helvetica 10'))] ]
     # Create the Window
@@ -202,7 +222,6 @@ if predNextPlay == True:
         event, values = window.read()
         if event in (None, 'Cancel'):	# if user closes window or clicks cancel
             break
-        #print('You entered ', values)
     
         qtr = values[0]
         score = values[1]
@@ -214,7 +233,6 @@ if predNextPlay == True:
         fieldZone = values[7]
         pers = values[8]
         defTeam = values[9]
-        #defTeam = 'UDM'
     
         if event=='Predict Next Play':
             nextPlayFeatures = [qtr, score, situation, driveNum, drivePlayNum, firstDownNum, dd, fieldZone, pers, defTeam]
@@ -229,11 +247,9 @@ if predNextPlay == True:
             dfNext.replace({'HASH': HASHmapping},inplace=True)
             dfNext.replace({'OFF TEAM': OFFTEAMmapping},inplace=True)
             dfNext.replace({'PERS': PERSmapping},inplace=True)
-            dfNext.replace({'BACKF SET': BACKFSETmapping},inplace=True)
-            dfNext.replace({'DEF PERSONNEL': DEFPERSONNELmapping},inplace=True)
 
             #Output the prediction
-            pred_probs = gbr.predict_proba(dfNext)
+            pred_probs = vc.predict_proba(dfNext)
     
             #Get the n most likely outcomes
             n=3
