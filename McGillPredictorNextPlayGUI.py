@@ -26,13 +26,13 @@ import PySimpleGUI as sg
 
 plotPie = False
 plotImportance = False
-predNextPlay = False
+predNextPlay = True
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE'
 Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
 #Currently the data is ordered by field zone so when i split into testing&training sets it's not
 #randomly sampled. Need to either shuffle the csv entries or randomly sample from the df
-df = pd.read_csv("CONUv4.csv")
+df = pd.read_csv("CONUv3.csv")
 
 #Get the variables we care about from the dataframe
 df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','PLAY CATEGORY','PLAY TYPE','DEF TEAM','DEF PERSONNEL', 'DEF FRONT', 'RESULT']]
@@ -197,7 +197,7 @@ print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".
 
 
 #Plot feature importance for both models
-DC.featureImportancePlot(plotImportance, gbc, features)
+#DC.featureImportancePlot(plotImportance, gbc, features)
 
 if predNextPlay == True:
     sg.theme('DarkBrown4')
