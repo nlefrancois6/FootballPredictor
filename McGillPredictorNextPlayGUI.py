@@ -1,17 +1,24 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Sat Feb 29 22:27:23 2020
+
 @author: Noah LeFrancois
 @email: noah.lefrancois@mail.mcgill.ca
+
 Will update changes made to McGillPredictor_GoodData here once validated, want to keep this file 
 clean since it will be the end-product
+
 Using data for each play in Con U's 2019 season (obtained from Hudl), we want to predict 
 their play selection (run/pass, play type, zones targeted) on the next play given input info 
 such as clock, field position, personnel, down&distance, defensive formation, etc. 
+
 I'd like to use the first 7 games of their season to train the model, and test its predictions in
 the final game of their season. Eventually, I'd like to update our model with each new play. 
+
 By setting predNextPlay = True, we can take user input for the features of the upcoming play 
 and predict the 3 most likely outcomes.
+
 """
 
 from sklearn.metrics import accuracy_score
@@ -23,6 +30,10 @@ import numpy as np
 import DCPredict as DC
 import PySimpleGUI as sg
 
+# import warnings filter
+from warnings import simplefilter
+# ignore all future warnings
+simplefilter(action='ignore', category=FutureWarning)
 
 plotPie = False
 plotImportance = False
@@ -135,17 +146,13 @@ gbc.fit(training_features, training_label)
 rfc = ensemble.RandomForestClassifier(n_estimators = 10, max_depth=2, random_state=120)
 rfc.fit(training_features, training_label)
 
-#Can get really good (~77.5%) ImpAcc with BC, but bad (~37-40%) Acc 
-bcc = ensemble.BaggingClassifier(base_estimator=SVC(), n_estimators=500, random_state=0, max_samples=50, max_features = 10, bootstrap_features = True)
-bcc.fit(training_features, training_label)
-
 #Train Extra Trees classifier on the data
 etc = ensemble.ExtraTreesClassifier(n_estimators=500, max_depth=5, random_state=0)
 etc.fit(training_features, training_label)
 
 #Soft Voting Predictor to combine GB and RF
 #8, 4, 1, 4
-vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('BC', bcc), ('ET', etc)], voting='soft', weights=[8, 0, 1, 4])
+vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[8, 1, 4])
 vc.fit(training_features, training_label)
 
 
@@ -155,9 +162,6 @@ pred_probsGB = gbc.predict_proba(testing_features)
 
 predRF = rfc.predict(testing_features)
 pred_probsRF = rfc.predict_proba(testing_features)
-
-predBC = bcc.predict(testing_features)
-pred_probsBC = bcc.predict_proba(testing_features)
 
 predET = etc.predict(testing_features)
 pred_probsET = etc.predict_proba(testing_features)
@@ -180,10 +184,6 @@ accuracyGB = accuracy_score(testing_label, predGB)
 #Accuracy for RF
 improved_accuracyRF = DC.improved_Accuracy(pred_probsRF, label_map, testing_label, n)
 accuracyRF = accuracy_score(testing_label, predRF)
-
-#Accuracy for BC
-improved_accuracyBC = DC.improved_Accuracy(pred_probsBC, label_map, testing_label, n)
-accuracyBC = accuracy_score(testing_label, predBC)
 
 #Accuracy for ET
 improved_accuracyET = DC.improved_Accuracy(pred_probsET, label_map, testing_label, n)
@@ -261,4 +261,6 @@ if predNextPlay == True:
             
     
     window.close()
+    
+    
 
