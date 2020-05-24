@@ -23,17 +23,23 @@ and predict the 3 most likely outcomes.
 
 from sklearn.metrics import accuracy_score
 from sklearn import ensemble
-from sklearn.svm import SVC
+from sklearn.neighbors import _typedefs
+from sklearn.neighbors import _quad_tree
+from sklearn.utils import _cython_blas
+from sklearn.tree import _utils
+#, sparsetools, lgamma 
+#from sklearn.svm import SVC
 import pandas as pd
 from sklearn import preprocessing
 import numpy as np
 import DCPredict as DC
 import PySimpleGUI as sg
 
+
 # import warnings filter
-from warnings import simplefilter
+#from warnings import simplefilter
 # ignore all future warnings
-simplefilter(action='ignore', category=FutureWarning)
+#simplefilter(action='ignore', category=FutureWarning)
 
 plotPie = False
 plotImportance = False
@@ -43,7 +49,7 @@ Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
 #Currently the data is ordered by field zone so when i split into testing&training sets it's not
 #randomly sampled. Need to either shuffle the csv entries or randomly sample from the df
-df = pd.read_csv("CONUv3.csv")
+df = pd.read_csv('CONUv3.csv')
 
 #Get the variables we care about from the dataframe
 df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','PLAY CATEGORY','PLAY TYPE','DEF TEAM','DEF PERSONNEL', 'DEF FRONT', 'RESULT']]
