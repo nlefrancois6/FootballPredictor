@@ -37,6 +37,19 @@ def rawDataPie(Out, plotPie, testing_df):
             title("Concordia 2019 play-type distribution")
             subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
             show()
+    elif Out == 'ZONE THROWN':
+        if plotPie == True:
+            playCat = testing_df['ZONE THROWN'].unique().tolist()
+            #playCatmapping = dict( zip(playCat,range(len(playCat))) )
+            rel_freq = testing_df['ZONE THROWN'].value_counts()
+            labelList = []
+            for label in range(0,len(playCat)):
+                labelList.append(rel_freq.index[label])
+            f1=figure()
+            pie(rel_freq, labels = labelList, autopct='%.2f%%')
+            title("Concordia 2019 Zone Thrown distribution")
+            subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+            show()
     else:
         print(Out + ' is not a supported output')
 
@@ -81,4 +94,3 @@ def improved_Accuracy(pred_probs, label_map, testing_label, n):
     improved_accuracy = mean(prediction_scores)
     
     return improved_accuracy
-
