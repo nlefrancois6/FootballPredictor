@@ -8,7 +8,7 @@ Created on Sat Feb 29 22:27:23 2020
 
 Using data for each play in Con U's 2019 season (obtained from Hudl), we want to predict 
 their play selection (run/pass, play type, zones targeted) on the next play given input info 
-such as clock, field position, personnel, down&distance, defensive personnel, etc. 
+such as clock, field position, personnel, down&distance, score, etc. 
 """
 
 from sklearn.metrics import accuracy_score
@@ -17,6 +17,13 @@ from sklearn.svm import SVC
 import pandas as pd
 from sklearn import preprocessing
 import DCPredict as DC
+
+
+
+# import warnings filter
+from warnings import simplefilter
+# ignore all future warnings
+simplefilter(action='ignore', category=FutureWarning)
 
 
 plotPie = False
@@ -73,7 +80,7 @@ df.replace({'PERS': PERSmapping},inplace=True)
 
 
 #Separate into training data set (Con U 2019 Games 1-7) and testing data set (Con U 2019 Game 8)
-training_df = df.sample(frac=0.7, random_state=1)
+training_df = df.sample(frac=0.8, random_state=1)
 indlist=list(training_df.index.values)
 
 testing_df = df.copy().drop(index=indlist)
@@ -117,17 +124,17 @@ gbc.fit(training_features, training_label)
 #max_depth=5 works well for type, value of 2 works well for category
 rfc = ensemble.RandomForestClassifier(n_estimators = 10, max_depth=2, random_state=120)
 rfc.fit(training_features, training_label)
-
+"""
 #Can get really good (~77.5%) ImpAcc with BC, but bad (~37-40%) Acc 
 bcc = ensemble.BaggingClassifier(base_estimator=SVC(), n_estimators=500, random_state=0, max_samples=50, max_features = 10, bootstrap_features = True)
 bcc.fit(training_features, training_label)
-
+"""
 #Train Extra Trees classifier on the data
 etc = ensemble.ExtraTreesClassifier(n_estimators=500, max_depth=5, random_state=0)
 etc.fit(training_features, training_label)
 
 #Soft Voting Predictor to combine GB and RF
-vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('BC', bcc), ('ET', etc)], voting='soft', weights=[8, 0, 1, 4])
+vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[8, 1, 4])
 vc.fit(training_features, training_label)
 
 
@@ -138,8 +145,8 @@ pred_probsGB = gbc.predict_proba(testing_features)
 predRF = rfc.predict(testing_features)
 pred_probsRF = rfc.predict_proba(testing_features)
 
-predBC = bcc.predict(testing_features)
-pred_probsBC = bcc.predict_proba(testing_features)
+#predBC = bcc.predict(testing_features)
+#pred_probsBC = bcc.predict_proba(testing_features)
 
 predET = etc.predict(testing_features)
 pred_probsET = etc.predict_proba(testing_features)
@@ -168,10 +175,10 @@ print("RF Performance:")
 print("Accuracy: "+"{:.2%}".format(accuracyRF)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyRF))
 
 #Accuracy for BC
-improved_accuracyBC = DC.improved_Accuracy(pred_probsBC, label_map, testing_label, n)
-accuracyBC = accuracy_score(testing_label, predBC)
-print("BC Performance:")
-print("Accuracy: "+"{:.2%}".format(accuracyBC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyBC))
+#improved_accuracyBC = DC.improved_Accuracy(pred_probsBC, label_map, testing_label, n)
+#accuracyBC = accuracy_score(testing_label, predBC)
+#print("BC Performance:")
+#print("Accuracy: "+"{:.2%}".format(accuracyBC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyBC))
 
 #Accuracy for ET
 improved_accuracyET = DC.improved_Accuracy(pred_probsET, label_map, testing_label, n)
