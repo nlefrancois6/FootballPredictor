@@ -28,7 +28,8 @@ simplefilter(action='ignore', category=FutureWarning)
 
 plotPie = False
 plotImportance = False
-#Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE'
+#Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE', 'ZONE THROWN'
+#Need to add zone thrown to df list of variables in order to use it
 Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
 #Currently the data is ordered by field zone so when i split into testing&training sets it's not
@@ -97,20 +98,13 @@ features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #', '1
 training_features = training_df[features]
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
 
-
-if Out == 'PLAY TYPE':
-    training_label = training_df['PLAY TYPE']
-elif Out == 'PLAY CATEGORY':
-    training_label = training_df['PLAY CATEGORY']
+training_label = training_df[Out]
 
 
 #Define features and label for testing set
 testing_features = testing_df[features]
 
-if Out == 'PLAY TYPE':
-    testing_label = testing_df['PLAY TYPE']
-elif Out == 'PLAY CATEGORY':
-    testing_label = testing_df['PLAY CATEGORY']
+testing_label = testing_df[Out]
 
 
 #Train a Gradient Boosting Machine on the data

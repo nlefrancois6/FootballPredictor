@@ -91,27 +91,13 @@ features = ['SCORE DIFF. (O)','DRIVE #','DRIVE PLAY #', '1ST DN #','D&D','Field 
 training_features = training_df[features]
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
 
-
-#Could probably simplify this by writing training_df[Out] instead of 
-#handling each case specifically
-if Out == 'PLAY TYPE':
-    training_label = training_df['PLAY TYPE']
-elif Out == 'PLAY CATEGORY':
-    training_label = training_df['PLAY CATEGORY']
-elif Out == 'ZONE THROWN':
-    training_label = training_df['ZONE THROWN']
+training_label = training_df[Out]
 
 
 #Define features and label for testing set
 testing_features = testing_df[features]
 
-if Out == 'PLAY TYPE':
-    testing_label = testing_df['PLAY TYPE']
-elif Out == 'PLAY CATEGORY':
-    testing_label = testing_df['PLAY CATEGORY']
-elif Out == 'ZONE THROWN':
-    testing_label = testing_df['ZONE THROWN']
-
+testing_label = testing_df[Out]
 
 #Train a Gradient Boosting Machine on the data
 #Using 500 for category, 200 for type roughly maximizes accuracy so far

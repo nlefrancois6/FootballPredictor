@@ -15,43 +15,18 @@ from matplotlib.pyplot import figure, pie, title, subplots_adjust, show, bar, xt
 Produce a pie chart showing the raw data for the chosen output variable
 """
 def rawDataPie(Out, plotPie, testing_df):
-    if Out == 'PLAY TYPE':
-        if plotPie == True:
-            rel_freq = testing_df['PLAY TYPE'].value_counts()
-            f1=figure()
-            #need to edit the labels to match the categories in our data
-            pie(rel_freq, labels = ('Pass','Run'), autopct='%.2f%%')
-            title("Concordia 2019 play-type distribution")
-            subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-            show()
-    elif Out == 'PLAY CATEGORY':
-        if plotPie == True:
-            playCat = testing_df['PLAY CATEGORY'].unique().tolist()
-            #playCatmapping = dict( zip(playCat,range(len(playCat))) )
-            rel_freq = testing_df['PLAY CATEGORY'].value_counts()
-            labelList = []
-            for label in range(0,len(playCat)):
-                labelList.append(rel_freq.index[label])
-            f1=figure()
-            pie(rel_freq, labels = labelList, autopct='%.2f%%')
-            title("Concordia 2019 play-type distribution")
-            subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-            show()
-    elif Out == 'ZONE THROWN':
-        if plotPie == True:
-            playCat = testing_df['ZONE THROWN'].unique().tolist()
-            #playCatmapping = dict( zip(playCat,range(len(playCat))) )
-            rel_freq = testing_df['ZONE THROWN'].value_counts()
-            labelList = []
-            for label in range(0,len(playCat)):
-                labelList.append(rel_freq.index[label])
-            f1=figure()
-            pie(rel_freq, labels = labelList, autopct='%.2f%%')
-            title("Concordia 2019 Zone Thrown distribution")
-            subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-            show()
-    else:
-        print(Out + ' is not a supported output')
+    if plotPie == True:
+        playCat = testing_df[Out].unique().tolist()
+        #playCatmapping = dict( zip(playCat,range(len(playCat))) )
+        rel_freq = testing_df[Out].value_counts()
+        labelList = []
+        for label in range(0,len(playCat)):
+            labelList.append(rel_freq.index[label])
+        f1=figure()
+        pie(rel_freq, labels = labelList, autopct='%.2f%%')
+        title("Concordia 2019 play-type distribution")
+        subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+        show()
 
 """
 Produce a bar graph for each model showing the feature importance weightings
