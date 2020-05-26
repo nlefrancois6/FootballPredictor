@@ -101,10 +101,10 @@ DEFPERSONNELmapping = dict( zip(DEFPERSONNEL,range(len(DEFPERSONNEL))) )
 df.replace({'DEF PERSONNEL': DEFPERSONNELmapping},inplace=True)
 
 
-#I'd like to compute the yards gained, play type, and result from the previous play and add them as an input for the current play
-#df['prevYards'] = prevYards
-#df['prevPlayType'] = prevPlayType
-#df['prevPlayResult'] = prevPlayResult
+#Get the list of possible outcomes
+Outcomes = df[Out].unique().tolist()
+OutcomeMapping = dict( zip(Outcomes,range(len(Outcomes))) )
+
 
 #Separate into training data set (Con U 2019 Games 1-7) and testing data set (Con U 2019 Game 8)
 #Random state is a seeding number
@@ -198,15 +198,14 @@ accuracyET = accuracy_score(testing_label, predET)
 #Accuracy for VC
 improved_accuracyVC = DC.improved_Accuracy(pred_probsVC, label_map, testing_label, n)
 accuracyVC = accuracy_score(testing_label, predVC)
-#print("Ensemble Performance:")
-#print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyVC))
 
 
 #Plot feature importance for both models
 #DC.featureImportancePlot(plotImportance, gbc, features)
 
 if predNextPlay == True:
-    sg.theme('DarkBrown4')
+    #LightBrown13, LightGrey5, LightBlue3, Topanga, LightGrey5, DarkBlack1
+    sg.theme('DarkBlack1')
     #Will need to read the possible inputs out of df to avoid errors when we get a formation we haven't seen before
     layout = [  [sg.Text('Enter Next Play Information')],
             [sg.Text('Quarter'), sg.Combo(['1', '2', '3', '4'])],
@@ -219,12 +218,14 @@ if predNextPlay == True:
             [sg.Text('Field Position'), sg.Combo(FieldZone)],
             [sg.Text('Offensive Personnel'), sg.Combo(PERS)],
             [sg.Text('Defensive Team'), sg.Combo(defenseTeams)],
-            [sg.Button('Predict Next Play'), sg.Button('Print Accuracy')] ,
-            [sg.Output(size=(75, 10), font=('Helvetica 10'))] ]
+            [sg.Button('Predict Next Play'), sg.Button('Check Accuracy')] ,
+            [sg.Output(size=(75, 6), font=('Helvetica 10'))], 
+            [sg.Text('Play Outcome'), sg.Combo(Outcomes), sg.Button('Save Outcome')],
+            [sg.Button('Add Saved Plays To Model')] ]
     # Create the Window
     window = sg.Window('LeFrancois DC Play Predictor', layout)
-    print("Ensemble Performance:")
-    print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyVC))
+    
+    numPlaysSaved = 0
 
     # Event Loop to process "events" and get the "values" of the inputs
     while True:
@@ -242,36 +243,48 @@ if predNextPlay == True:
         fieldZone = values[7]
         pers = values[8]
         defTeam = values[9]
+        outcome = values[10]
     
         if event=='Predict Next Play':
             nextPlayFeatures = [qtr, score, situation, driveNum, drivePlayNum, firstDownNum, dd, fieldZone, pers, defTeam]
-            dfNext = pd.DataFrame([nextPlayFeatures], columns=features)
+            if '' in nextPlayFeatures:
+                print("Cannot make prediction because not all inputs are filled")
+            else:
+                dfNext = pd.DataFrame([nextPlayFeatures], columns=features)
     
-            #Relabel the feature strings with a numerical mapping
-            dfNext.replace({'Formation': formationmapping},inplace=True)
-            dfNext.replace({'DEF TEAM': defenseTeamMap},inplace=True)
-            dfNext.replace({'SITUATION (O)': situationmapping},inplace=True)
-            dfNext.replace({'D&D': DDmapping},inplace=True)
-            dfNext.replace({'Field Zone': FieldZonemapping},inplace=True)
-            dfNext.replace({'HASH': HASHmapping},inplace=True)
-            dfNext.replace({'OFF TEAM': OFFTEAMmapping},inplace=True)
-            dfNext.replace({'PERS': PERSmapping},inplace=True)
+                #Relabel the feature strings with a numerical mapping
+                dfNext.replace({'Formation': formationmapping},inplace=True)
+                dfNext.replace({'DEF TEAM': defenseTeamMap},inplace=True)
+                dfNext.replace({'SITUATION (O)': situationmapping},inplace=True)
+                dfNext.replace({'D&D': DDmapping},inplace=True)
+                dfNext.replace({'Field Zone': FieldZonemapping},inplace=True)
+                dfNext.replace({'HASH': HASHmapping},inplace=True)
+                dfNext.replace({'OFF TEAM': OFFTEAMmapping},inplace=True)
+                dfNext.replace({'PERS': PERSmapping},inplace=True)
 
-            #Output the prediction
-            pred_probs = vc.predict_proba(dfNext)
+                #Output the prediction
+                pred_probs = vc.predict_proba(dfNext)
     
-            #Get the n most likely outcomes
-            n=3
-            pred_probs_next = pred_probs[0]
-            label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
-            next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
+                #Get the n most likely outcomes
+                n=3
+                pred_probs_next = pred_probs[0]
+                label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
+                next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
 
-            print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
-        elif event=='Print Accuracy':
-            print("Ensemble Performance:")
+                print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
+        elif event=='Check Accuracy':
             print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyVC))
-
-    
+        elif event=='Save Outcome':
+            #Add the new play features and label to the training set
+            labelNext = pd.DataFrame({0:[outcome]})
+            training_features = training_features.append(dfNext, ignore_index = True)
+            training_label = training_label.append(labelNext, ignore_index = True)
+            numPlaysSaved = numPlaysSaved + 1
+            print('Play Outcome Saved. ' + str(numPlaysSaved) + " play(s) waiting to be added to model.")
+        elif event=='Add Saved Plays To Model':
+            #Insert here: train the model with expanded training set
+            print(str(numPlaysSaved) + " play(s) have been added to the model.")
+            numPlaysSaved = 0
     window.close()
     
     
