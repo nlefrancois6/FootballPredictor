@@ -282,7 +282,37 @@ if predNextPlay == True:
             numPlaysSaved = numPlaysSaved + 1
             print('Play Outcome Saved. ' + str(numPlaysSaved) + " play(s) waiting to be added to model.")
         elif event=='Add Saved Plays To Model':
-            #Insert here: train the model with expanded training set
+            #print('Adding new plays to model ...')
+            #Train the model with expanded training set
+            gbc.fit(training_features, training_label.values.ravel())
+            rfc.fit(training_features, training_label.values.ravel())
+            etc.fit(training_features, training_label.values.ravel())
+            
+            vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[8, 1, 4])
+            vc.fit(training_features, training_label.values.ravel())
+
+            predGB = gbc.predict(testing_features)
+            pred_probsGB = gbc.predict_proba(testing_features)
+            predRF = rfc.predict(testing_features)
+            pred_probsRF = rfc.predict_proba(testing_features)
+            predET = etc.predict(testing_features)
+            pred_probsET = etc.predict_proba(testing_features)
+            predVC = vc.predict(testing_features)
+            pred_probsVC = vc.predict_proba(testing_features)
+
+            le = preprocessing.LabelEncoder()
+            le.fit(training_label.values.ravel())
+            label_map = le.classes_
+
+            improved_accuracyGB = DC.improved_Accuracy(pred_probsGB, label_map, testing_label, n)
+            accuracyGB = accuracy_score(testing_label, predGB)
+            improved_accuracyRF = DC.improved_Accuracy(pred_probsRF, label_map, testing_label, n)
+            accuracyRF = accuracy_score(testing_label, predRF)
+            improved_accuracyET = DC.improved_Accuracy(pred_probsET, label_map, testing_label, n)
+            accuracyET = accuracy_score(testing_label, predET)
+            improved_accuracyVC = DC.improved_Accuracy(pred_probsVC, label_map, testing_label, n)
+            accuracyVC = accuracy_score(testing_label, predVC)
+            
             print(str(numPlaysSaved) + " play(s) have been added to the model.")
             numPlaysSaved = 0
     window.close()
