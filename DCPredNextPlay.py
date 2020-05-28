@@ -6,15 +6,12 @@ Created on Sat Feb 29 22:27:23 2020
 @author: Noah LeFrancois
 @email: noah.lefrancois@mail.mcgill.ca
 
-Will update changes made to McGillPredictor_GoodData here once validated, want to keep this file 
-clean since it will be the end-product
+Using data for each play in a dataset of past games, we want to predict 
+the offensive play selection (run/pass, play type, zones targeted) on the next play given input info 
+such as score, field position, personnel, down&distance, defensive team, etc. 
 
-Using data for each play in Con U's 2019 season (obtained from Hudl), we want to predict 
-their play selection (run/pass, play type, zones targeted) on the next play given input info 
-such as clock, field position, personnel, down&distance, defensive formation, etc. 
-
-I'd like to use the first 7 games of their season to train the model, and test its predictions in
-the final game of their season. Eventually, I'd like to update our model with each new play. 
+New data can be labelled and saved after each play, and this data can be added to re-train the model 
+throughout a game in real-time.
 
 By setting predNextPlay = True, we can take user input for the features of the upcoming play 
 and predict the 3 most likely outcomes.
@@ -41,6 +38,7 @@ import PySimpleGUI as sg
 # ignore all future warnings
 #simplefilter(action='ignore', category=FutureWarning)
 
+#predNextPlay must be True to run the GUI and in-game predictor
 plotPie = False
 plotImportance = False
 predNextPlay = True
@@ -117,8 +115,9 @@ testing_df = df.copy().drop(index=indlist)
 #Find the relative frequency of labels as a baseline to compare our play type prediction to
 DC.rawDataPie(Out, plotPie, testing_df)
 
-features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','PERS','DEF TEAM']
-
+features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','PERS','OFF TEAM', 'DEF TEAM']
+columnLabels = features.copy()
+columnLabels.append(Out)
 #Define the features (input) and label (prediction output) for training set
 training_features = training_df[features]
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
@@ -208,24 +207,27 @@ if predNextPlay == True:
     sg.theme('DarkBlack1')
     #Will need to read the possible inputs out of df to avoid errors when we get a formation we haven't seen before
     layout = [  [sg.Text('Enter Next Play Information')],
+            [sg.Text('Defensive Team'), sg.Combo(defenseTeams), sg.Text('Offensive Team'), sg.Combo(OFFTEAM)],  
             [sg.Text('Quarter'), sg.Combo(['1', '2', '3', '4'])],
             [sg.Text('Score Differential'), sg.Slider(range=(-45, 45), orientation='h', size=(25, 20), default_value=0, tick_interval=15)],
             [sg.Text('Situation'), sg.Combo(situation)],
             [sg.Text('Drive Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1, tick_interval=9)],
+            [sg.Text('1st Downs in Drive'), sg.Slider(range=(0, 10), orientation='h', size=(25, 20), default_value=0, tick_interval=2)],
             [sg.Text('Drive Play Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1, tick_interval=9)],
-            [sg.Text('1st Downs in Drive'), sg.Slider(range=(1, 10), orientation='h', size=(25, 20), default_value=1, tick_interval=2)],
             [sg.Text('Down&Distance'), sg.Combo(DD)],
             [sg.Text('Field Position'), sg.Combo(FieldZone)],
             [sg.Text('Offensive Personnel'), sg.Combo(PERS)],
-            [sg.Text('Defensive Team'), sg.Combo(defenseTeams)],
             [sg.Button('Predict Next Play'), sg.Button('Check Accuracy')] ,
             [sg.Output(size=(75, 6), font=('Helvetica 10'))], 
             [sg.Text('Play Outcome'), sg.Combo(Outcomes), sg.Button('Save Outcome')],
-            [sg.Button('Add Saved Plays To Model')] ]
+            [sg.Button('Add Saved Plays To Model'), sg.Button('Download Updated Data')] ]
     # Create the Window
     window = sg.Window('LeFrancois DC Play Predictor', layout)
     
     numPlaysSaved = 0
+    inputsToSave = False
+    numPlaysAdded = 0
+    dfNewData = pd.DataFrame([], columns=columnLabels)    
 
     # Event Loop to process "events" and get the "values" of the inputs
     while True:
@@ -233,23 +235,26 @@ if predNextPlay == True:
         if event in (None, 'Cancel'):	# if user closes window or clicks cancel
             break
     
-        qtr = values[0]
-        score = values[1]
-        situation = values[2]
-        driveNum = values[3]
-        drivePlayNum = values[4]
-        firstDownNum = values[5]
-        dd = values[6]
-        fieldZone = values[7]
-        pers = values[8]
-        defTeam = values[9]
-        outcome = values[10]
+        defTeam = values[0]
+        offTeam = values[1]
+        qtr = values[2]
+        score = values[3]
+        situation = values[4]
+        driveNum = values[5]
+        firstDownNum = values[6]
+        drivePlayNum = values[7]
+        dd = values[8]
+        fieldZone = values[9]
+        pers = values[10]
+        
+        outcome = values[11]
     
         if event=='Predict Next Play':
-            nextPlayFeatures = [qtr, score, situation, driveNum, drivePlayNum, firstDownNum, dd, fieldZone, pers, defTeam]
+            nextPlayFeatures = [qtr, score, situation, driveNum, drivePlayNum, firstDownNum, dd, fieldZone, pers, offTeam, defTeam]
             if '' in nextPlayFeatures:
                 print("Cannot make prediction because not all inputs are filled")
             else:
+                inputsToSave = True
                 dfNext = pd.DataFrame([nextPlayFeatures], columns=features)
     
                 #Relabel the feature strings with a numerical mapping
@@ -273,14 +278,26 @@ if predNextPlay == True:
 
                 print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
         elif event=='Check Accuracy':
-            print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyVC))
+            print("Accuracy of Top 1: "+"{:.2%}".format(accuracyVC)+", Accuracy of Top 3: "+"{:.2%}".format(improved_accuracyVC))
         elif event=='Save Outcome':
-            #Add the new play features and label to the training set
-            labelNext = pd.DataFrame({0:[outcome]})
-            training_features = training_features.append(dfNext, ignore_index = True)
-            training_label = training_label.append(labelNext, ignore_index = True)
-            numPlaysSaved = numPlaysSaved + 1
-            print('Play Outcome Saved. ' + str(numPlaysSaved) + " play(s) waiting to be added to model.")
+            if inputsToSave == False:
+                print("Cannot make prediction because inputs have not been used to predict a play.")
+            elif outcome=='':
+                print("Cannot make prediction because an outcome has not been recorded.")
+            else:
+                #Add the new play features and label to the training set
+                labelNext = pd.DataFrame({0:[outcome]})
+                training_features = training_features.append(dfNext, ignore_index = True)
+                training_label = training_label.append(labelNext, ignore_index = True)
+                #Add new play features and label to dfNewData, which can be downloaded later
+                nextPlayFeatures.append(outcome)
+                dfNextData = pd.DataFrame([nextPlayFeatures], columns=columnLabels)
+                dfNewData = pd.concat([dfNewData, dfNextData])
+                
+                numPlaysSaved = numPlaysSaved + 1
+                print('Play Outcome Saved. ' + str(numPlaysSaved) + " play(s) waiting to be added to model.")
+                
+                inputsToSave = False
         elif event=='Add Saved Plays To Model':
             #print('Adding new plays to model ...')
             #Train the model with expanded training set
@@ -314,7 +331,16 @@ if predNextPlay == True:
             accuracyVC = accuracy_score(testing_label, predVC)
             
             print(str(numPlaysSaved) + " play(s) have been added to the model.")
+            numPlaysAdded = numPlaysAdded + numPlaysSaved
             numPlaysSaved = 0
+        elif event=='Download Updated Data':
+            #Check if there's new data (numPlaysAddd>0), else print an error message
+            if numPlaysAdded>0:                
+                #Save the data to a csv in the dist folder
+                dfNewData.to_csv('newData.csv', index=False)
+                print('Data saved to dist folder.')
+            else:
+                print("No new data has been added yet.")
     window.close()
     
     
