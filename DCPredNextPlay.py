@@ -62,8 +62,8 @@ formations = df['OFF FORM'].unique().tolist()
 formationmapping = dict( zip(formations,range(len(formations))) )
 df.replace({'OFF FORM': formationmapping},inplace=True)
 
-situation = df['SITUATION (O)'].unique().tolist()
-situationmapping = dict( zip(situation,range(len(situation))) )
+situations = df['SITUATION (O)'].unique().tolist()
+situationmapping = dict( zip(situations,range(len(situations))) )
 df.replace({'SITUATION (O)': situationmapping},inplace=True)
 
 defenseTeams = df['DEF TEAM'].unique().tolist()
@@ -210,7 +210,7 @@ if predNextPlay == True:
             [sg.Text('Defensive Team'), sg.Combo(defenseTeams), sg.Text('Offensive Team'), sg.Combo(OFFTEAM)],  
             [sg.Text('Quarter'), sg.Combo(['1', '2', '3', '4'])],
             [sg.Text('Score Differential'), sg.Slider(range=(-45, 45), orientation='h', size=(25, 20), default_value=0, tick_interval=15)],
-            [sg.Text('Situation'), sg.Combo(situation)],
+            [sg.Text('Situation'), sg.Combo(situations)],
             [sg.Text('Drive Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1, tick_interval=9)],
             [sg.Text('1st Downs in Drive'), sg.Slider(range=(0, 10), orientation='h', size=(25, 20), default_value=0, tick_interval=2)],
             [sg.Text('Drive Play Number'), sg.Slider(range=(1, 20), orientation='h', size=(25, 20), default_value=1, tick_interval=9)],
@@ -225,8 +225,9 @@ if predNextPlay == True:
     window = sg.Window('LeFrancois DC Play Predictor', layout)
     
     numPlaysSaved = 0
-    inputsToSave = False
     numPlaysAdded = 0
+    inputsToSave = False
+    newVal = False
     dfNewData = pd.DataFrame([], columns=columnLabels)    
 
     # Event Loop to process "events" and get the "values" of the inputs
@@ -254,6 +255,44 @@ if predNextPlay == True:
             if '' in nextPlayFeatures:
                 print("Cannot make prediction because not all inputs are filled")
             else:
+                #If an input is previously unseen, add it to the list of options
+                if defTeam not in defenseTeams:
+                    defenseTeams.append(defTeam)
+                    defenseTeamMap = dict( zip(defenseTeams,range(len(defenseTeams))) )
+                    window[0].update(values=defenseTeams)
+                    print('Cannot make prediction for new value. New value added for future use.')
+                    newVal = True
+                if offTeam not in OFFTEAM:
+                    OFFTEAM.append(offTeam)
+                    OFFTEAMmapping = dict( zip(OFFTEAM,range(len(OFFTEAM))) )
+                    window[1].update(values=OFFTEAM)
+                    print('Cannot make prediction for new value. New value added for future use.')
+                    newVal = True
+                if situation not in situations:
+                    situations.append(situation)
+                    situationmapping = dict( zip(situation,range(len(situation))) )
+                    window[4].update(values=situations)
+                    print('Cannot make prediction for new value. New value added for future use.')
+                    newVal = True
+                if dd not in DD:
+                    DD.append(dd)
+                    DDmapping = dict( zip(DD,range(len(DD))) )
+                    window[8].update(values=DD)
+                    print('Cannot make prediction for new value. New value added for future use.')
+                    newVal = True
+                if fieldZone not in FieldZone:
+                    FieldZone.append(fieldZone)
+                    FieldZonemapping = dict( zip(FieldZone,range(len(FieldZone))) )
+                    window[9].update(values=FieldZone)
+                    print('Cannot make prediction for new value. New value added for future use.')
+                    newVal = True
+                if pers not in PERS:
+                    PERS.append(pers)
+                    PERSmapping = dict( zip(PERS,range(len(PERS))) )
+                    window[10].update(values=PERS)
+                    print('Cannot make prediction for new value. New value added for future use.')
+                    newVal = True
+                
                 inputsToSave = True
                 dfNext = pd.DataFrame([nextPlayFeatures], columns=features)
     
@@ -266,19 +305,70 @@ if predNextPlay == True:
                 dfNext.replace({'HASH': HASHmapping},inplace=True)
                 dfNext.replace({'OFF TEAM': OFFTEAMmapping},inplace=True)
                 dfNext.replace({'PERS': PERSmapping},inplace=True)
-
-                #Output the prediction
-                pred_probs = vc.predict_proba(dfNext)
+                
+                if not newVal:
+                    #Output the prediction
+                    pred_probs = vc.predict_proba(dfNext)
     
-                #Get the n most likely outcomes
-                n=3
-                pred_probs_next = pred_probs[0]
-                label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
-                next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
+                    #Get the n most likely outcomes
+                    n=3
+                    pred_probs_next = pred_probs[0]
+                    label_map_indices = np.linspace(0,len(pred_probs_next)-1,num=len(pred_probs_next))
+                    next_outcomes_prob = sorted(zip(pred_probs_next, label_map_indices), reverse=True)[:n]
 
-                print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
+                    print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
+                else:
+                    #Add the new play features and label to the training set
+                    labelNext = pd.DataFrame({0:[outcome]})
+                    training_features = training_features.append(dfNext, ignore_index = True)
+                    training_label = training_label.append(labelNext, ignore_index = True)
+                    #Add new play features and label to dfNewData, which can be downloaded later
+                    nextPlayFeatures.append(outcome)
+                    dfNextData = pd.DataFrame([nextPlayFeatures], columns=columnLabels)
+                    dfNewData = pd.concat([dfNewData, dfNextData])
+                
+                    numPlaysSaved = numPlaysSaved + 1
+                    inputsToSave = False
+                    
+                    #Train the model with expanded training set
+                    gbc.fit(training_features, training_label.values.ravel())
+                    rfc.fit(training_features, training_label.values.ravel())
+                    etc.fit(training_features, training_label.values.ravel())
+            
+                    vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[8, 1, 4])
+                    vc.fit(training_features, training_label.values.ravel())
+
+                    predGB = gbc.predict(testing_features)
+                    pred_probsGB = gbc.predict_proba(testing_features)
+                    predRF = rfc.predict(testing_features)
+                    pred_probsRF = rfc.predict_proba(testing_features)
+                    predET = etc.predict(testing_features)
+                    pred_probsET = etc.predict_proba(testing_features)
+                    predVC = vc.predict(testing_features)
+                    pred_probsVC = vc.predict_proba(testing_features)
+
+                    le = preprocessing.LabelEncoder()
+                    le.fit(training_label.values.ravel())
+                    label_map = le.classes_
+
+                    improved_accuracyGB = DC.improved_Accuracy(pred_probsGB, label_map, testing_label, n)
+                    accuracyGB = accuracy_score(testing_label, predGB)
+                    improved_accuracyRF = DC.improved_Accuracy(pred_probsRF, label_map, testing_label, n)
+                    accuracyRF = accuracy_score(testing_label, predRF)
+                    improved_accuracyET = DC.improved_Accuracy(pred_probsET, label_map, testing_label, n)
+                    accuracyET = accuracy_score(testing_label, predET)
+                    improved_accuracyVC = DC.improved_Accuracy(pred_probsVC, label_map, testing_label, n)
+                    accuracyVC = accuracy_score(testing_label, predVC)
+            
+                    print(str(numPlaysSaved) + " play(s) have been added to the model.")
+                    numPlaysAdded = numPlaysAdded + numPlaysSaved
+                    numPlaysSaved = 0
+                    
+                    newVal = False
+                    
         elif event=='Check Accuracy':
             print("Accuracy of Top 1: "+"{:.2%}".format(accuracyVC)+", Accuracy of Top 3: "+"{:.2%}".format(improved_accuracyVC))
+            
         elif event=='Save Outcome':
             if inputsToSave == False:
                 print("Cannot make prediction because inputs have not been used to predict a play.")
@@ -286,6 +376,9 @@ if predNextPlay == True:
                 print("Cannot make prediction because an outcome has not been recorded.")
             else:
                 #Add the new play features and label to the training set
+                if outcome not in Outcomes:
+                    Outcomes.append(outcome)
+                    window[11].update(values=Outcomes)
                 labelNext = pd.DataFrame({0:[outcome]})
                 training_features = training_features.append(dfNext, ignore_index = True)
                 training_label = training_label.append(labelNext, ignore_index = True)
@@ -341,6 +434,7 @@ if predNextPlay == True:
                 print('Data saved to dist folder.')
             else:
                 print("No new data has been added yet.")
+                
     window.close()
     
     
