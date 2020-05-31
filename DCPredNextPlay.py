@@ -47,7 +47,7 @@ Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
 #Currently the data is ordered by field zone so when i split into testing&training sets it's not
 #randomly sampled. Need to either shuffle the csv entries or randomly sample from the df
-df = pd.read_csv('CONUv3.csv')
+df = pd.read_csv('DCpredictordata.csv')
 
 #Get the variables we care about from the dataframe
 df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','PLAY CATEGORY','PLAY TYPE','DEF TEAM','DEF PERSONNEL', 'DEF FRONT', 'RESULT']]
@@ -318,6 +318,14 @@ if predNextPlay == True:
 
                     print("Most Likely Outcomes: "+label_map[int(next_outcomes_prob[0][1])]+" "+"{:.2%}".format(next_outcomes_prob[0][0])+", "+label_map[int(next_outcomes_prob[1][1])]+" "+"{:.2%}".format(next_outcomes_prob[1][0])+", "+label_map[int(next_outcomes_prob[2][1])]+" "+"{:.2%}".format(next_outcomes_prob[2][0]))
                 else:
+                    #Train model on any pre-saved data
+                    gbc.fit(training_features, training_label.values.ravel())
+                    rfc.fit(training_features, training_label.values.ravel())
+                    etc.fit(training_features, training_label.values.ravel())
+            
+                    vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[8, 1, 4])
+                    vc.fit(training_features, training_label.values.ravel())
+                    
                     #Add the new play features and label to the training set
                     labelNext = pd.DataFrame({0:[outcome]})
                     training_features = training_features.append(dfNext, ignore_index = True)
@@ -367,7 +375,7 @@ if predNextPlay == True:
                     newVal = False
                     
         elif event=='Check Accuracy':
-            print("Accuracy of Top 1: "+"{:.2%}".format(accuracyVC)+", Accuracy of Top 3: "+"{:.2%}".format(improved_accuracyVC))
+            print("Accuracy of Top Prediction: "+"{:.2%}".format(accuracyVC)+", Accuracy of Top 3 Predictions: "+"{:.2%}".format(improved_accuracyVC))
             
         elif event=='Save Outcome':
             if inputsToSave == False:
@@ -430,7 +438,7 @@ if predNextPlay == True:
             #Check if there's new data (numPlaysAddd>0), else print an error message
             if numPlaysAdded>0:                
                 #Save the data to a csv in the dist folder
-                dfNewData.to_csv('newData.csv', index=False)
+                dfNewData.to_csv('newPlayData.csv', index=False)
                 print('Data saved to dist folder.')
             else:
                 print("No new data has been added yet.")
