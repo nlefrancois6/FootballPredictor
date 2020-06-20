@@ -46,11 +46,11 @@ df = df.dropna()
 
 #Specify which playlist sizes to test and make a copy of the original data 
 #from which to draw the test plays
-numPlays = [100, 200, 300, 400]
+numPlays = [25, 50, 100, 150, 200, 250, 300, 350, 400]
 dfFull = df.copy()
 
 #Give a list of random number generator seeds to test
-seeds = [0,1]
+seeds = [0,1,2,3,4,5,6,7,8,9,10]
 
 #Initialize the arrays used to store the accuracy and time results
 GBacc = np.zeros([len(seeds),2,len(numPlays)])
@@ -154,7 +154,7 @@ for s in seeds:
         etc.fit(training_features, training_label)
 
         #Soft Voting Predictor to combine GB and RF
-        vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[8, 1, 4])
+        vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[1, 4, 3])
         vc.fit(training_features, training_label)
 
 

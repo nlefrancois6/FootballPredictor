@@ -9,6 +9,8 @@ Created on Sat Jun 20 15:54:05 2020
 import numpy as np
 import matplotlib.pyplot as plt
 
+errorBars = False
+
 #plt.plot(numPlays, trainingTime[0,0,:])
 #plt.plot(numPlays, trainingTime[1,0,:])
 
@@ -67,22 +69,44 @@ for i in range(len(numPlays)):
 
 fig, (ax1, ax2, ax3) = plt.subplots(3,1)
    
-ax1.plot(numPlays, timeMean[0,:])
-ax1.set(xlabel='Number of Plays', ylabel='Model Training Time (s)')
-ax1.set_title('Training Time')
+if errorBars:
+    ax1.errorbar(numPlays, timeMean[0,:], timeStd[0,:], fmt='o:')
+    ax1.set(xlabel='Number of Plays', ylabel='Model Training Time (s)')
+    ax1.set_title('Training Time')
    
-ax2.plot(numPlays, GBaccMean[0,:], label='GB')
-ax2.plot(numPlays, RFaccMean[0,:], label='RF')
-ax2.plot(numPlays, ETaccMean[0,:], label='ET')
-ax2.plot(numPlays, VCaccMean[0,:], label='VC')
-ax2.set(xlabel='Number of Plays', ylabel='Model Accuracy (%)')
-ax2.set_title('Model Accuracy for Top Choice')
-ax2.legend()
+    ax2.errorbar(numPlays, GBaccMean[0,:], GBaccStd[0,:], fmt='o:', label='GB')
+    ax2.errorbar(numPlays, RFaccMean[0,:], RFaccStd[0,:], fmt='o:', label='RF')
+    ax2.errorbar(numPlays, ETaccMean[0,:], ETaccStd[0,:], fmt='o:', label='ET')
+    ax2.errorbar(numPlays, VCaccMean[0,:], VCaccStd[0,:], fmt='o:', label='VC')
+    ax2.set(xlabel='Number of Plays', ylabel='Model Accuracy (%)')
+    ax2.set_title('Model Accuracy for Top Choice')
+    ax2.legend(loc='lower right')
   
-ax3.plot(numPlays, GBaccIMean[0,:], label='GB')
-ax3.plot(numPlays, RFaccIMean[0,:], label='RF')
-ax3.plot(numPlays, ETaccIMean[0,:], label='ET') 
-ax3.plot(numPlays, VCaccIMean[0,:], label='VC')
-ax3.set(xlabel='Number of Plays', ylabel='Model Accuracy (%)')
-ax3.set_title('Model Accuracy for Top 3 Choices')
-ax3.legend()
+    ax3.errorbar(numPlays, GBaccIMean[0,:], GBaccIStd[0,:], fmt='o:', label='GB')
+    ax3.errorbar(numPlays, RFaccIMean[0,:], RFaccIStd[0,:], fmt='o:', label='RF')
+    ax3.errorbar(numPlays, ETaccIMean[0,:], ETaccIStd[0,:], fmt='o:', label='ET') 
+    ax3.errorbar(numPlays, VCaccIMean[0,:], VCaccIStd[0,:], fmt='o:', label='VC')
+    ax3.set(xlabel='Number of Plays', ylabel='Model Accuracy (%)')
+    ax3.set_title('Model Accuracy for Top 3 Choices')
+    ax3.legend(loc='lower right')
+
+else:
+    ax1.plot(numPlays, timeMean[0,:], 'o:')
+    ax1.set(xlabel='Number of Plays', ylabel='Model Training Time (s)')
+    ax1.set_title('Training Time')
+   
+    ax2.plot(numPlays, GBaccMean[0,:], 'o:', label='GB')
+    ax2.plot(numPlays, RFaccMean[0,:], 'o:', label='RF')
+    ax2.plot(numPlays, ETaccMean[0,:], 'o:', label='ET')
+    ax2.plot(numPlays, VCaccMean[0,:], 'o:', label='VC')
+    ax2.set(xlabel='Number of Plays', ylabel='Model Accuracy (%)')
+    ax2.set_title('Model Accuracy for Top Choice')
+    ax2.legend(loc='lower right')
+  
+    ax3.plot(numPlays, GBaccIMean[0,:], 'o:', label='GB')
+    ax3.plot(numPlays, RFaccIMean[0,:], 'o:', label='RF')
+    ax3.plot(numPlays, ETaccIMean[0,:], 'o:', label='ET') 
+    ax3.plot(numPlays, VCaccIMean[0,:], 'o:', label='VC')
+    ax3.set(xlabel='Number of Plays', ylabel='Model Accuracy (%)')
+    ax3.set_title('Model Accuracy for Top 3 Choices')
+    ax3.legend(loc='lower right')
