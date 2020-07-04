@@ -13,7 +13,6 @@ from sklearn import ensemble
 import pandas as pd
 from sklearn import preprocessing
 import DCPredict as DC
-#from sklearn.svm import SVC
 
 # import warnings filter (I don't think I need this anymore since it was for the BCC)
 from warnings import simplefilter
@@ -23,7 +22,7 @@ simplefilter(action='ignore', category=FutureWarning)
 
 plotPie = False
 plotImportance = False
-plotConfusion = False
+plotConfusion = True
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE', 'ZONE THROWN'
 #Need to add zone thrown to df list of variables in order to use it
 Out = 'PLAY CATEGORY'

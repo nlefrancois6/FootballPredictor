@@ -9,7 +9,6 @@ assessing its accuracy.
 from numpy import empty, linspace, isin, mean
 from matplotlib.pyplot import figure, pie, title, subplots_adjust, show, bar, xticks
 import pandas as pd
-import matplotlib.pyplot as plt #for confusion matrix
 import seaborn as sn #for confusion matrix
 from sklearn.metrics import confusion_matrix #for confusion matrix
 from sklearn.metrics import accuracy_score, log_loss #for modelMetrics
@@ -53,7 +52,7 @@ def confusionMatrix(plotConfusion, testing_label, predictions, label_map):
         cmArray = confusion_matrix(testing_label, predictions)
 
         df_cm = pd.DataFrame(cmArray, range(len(label_map)), range(len(label_map)))
-        plt.figure(figsize=(10,8))
+        figure(figsize=(10,8))
         sn.set(font_scale=1.0) # for label size
         sn.heatmap(df_cm, annot=True, cmap = sn.color_palette("Blues"), annot_kws={"size": 10}) # font size
 
