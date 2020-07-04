@@ -39,6 +39,12 @@ VCaccIMean = np.zeros([1,len(numPlays)])
 VCaccIStd = np.zeros([1,len(numPlays)])
 
 
+#Rescale the accuracy values to percentage instead of normalized fraction
+GBacc = GBacc*100
+RFacc = RFacc*100
+ETacc = ETacc*100
+VCacc = VCacc*100
+
 #Calculate the average measured values and their std
 for i in range(len(numPlays)):
     #Time

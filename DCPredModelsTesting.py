@@ -11,7 +11,6 @@ such as clock, field position, personnel, down&distance, score, etc.
 
 from sklearn.metrics import accuracy_score
 from sklearn import ensemble
-from sklearn.svm import SVC
 import pandas as pd
 from sklearn import preprocessing
 import DCPredict as DC
@@ -144,17 +143,13 @@ for s in seeds:
         #max_depth=5 works well for type, value of 2 works well for category
         rfc = ensemble.RandomForestClassifier(n_estimators = 10, max_depth=2, random_state=120)
         rfc.fit(training_features, training_label)
-        """
-        #Can get really good (~77.5%) ImpAcc with BC, but bad (~37-40%) Acc 
-        bcc = ensemble.BaggingClassifier(base_estimator=SVC(), n_estimators=500, random_state=0, max_samples=50, max_features = 10, bootstrap_features = True)
-        bcc.fit(training_features, training_label)
-        """
+
         #Train Extra Trees classifier on the data
         etc = ensemble.ExtraTreesClassifier(n_estimators=500, max_depth=5, random_state=0)
         etc.fit(training_features, training_label)
 
         #Soft Voting Predictor to combine GB and RF
-        vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[1, 4, 3])
+        vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[2, 2, 1])
         vc.fit(training_features, training_label)
 
 
@@ -164,9 +159,6 @@ for s in seeds:
 
         predRF = rfc.predict(testing_features)
         pred_probsRF = rfc.predict_proba(testing_features)
-
-        #predBC = bcc.predict(testing_features)
-        #pred_probsBC = bcc.predict_proba(testing_features)
 
         predET = etc.predict(testing_features)
         pred_probsET = etc.predict_proba(testing_features)
