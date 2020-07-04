@@ -2,14 +2,17 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon May  4 09:35:00 2020
-
 @author: noahlefrancois
-
 Define the functions necessary for running the offensive play predictor and
 assessing its accuracy.
 """
 from numpy import empty, linspace, isin, mean
 from matplotlib.pyplot import figure, pie, title, subplots_adjust, show, bar, xticks
+import pandas as pd
+import matplotlib.pyplot as plt #for confusion matrix
+import seaborn as sn #for confusion matrix
+from sklearn.metrics import confusion_matrix #for confusion matrix
+from sklearn.metrics import accuracy_score, log_loss #for modelMetrics
 
 """
 Produce a pie chart showing the raw data for the chosen output variable
@@ -40,7 +43,20 @@ def featureImportancePlot(plotImportance, gbc, features):
         title("Gradient Boosting Classifier: Feature Importance")
         xticks(rotation='vertical')
         show()
+
+"""
+Produce the confusion matrix for a model
+"""   
     
+def confusionMatrix(plotConfusion, testing_label, predictions, label_map):
+    if plotConfusion == True:
+        cmArray = confusion_matrix(testing_label, predictions)
+
+        df_cm = pd.DataFrame(cmArray, range(len(label_map)), range(len(label_map)))
+        plt.figure(figsize=(10,8))
+        sn.set(font_scale=1.0) # for label size
+        sn.heatmap(df_cm, annot=True, cmap = sn.color_palette("Blues"), annot_kws={"size": 10}) # font size
+
 """
 For a given input play, check whether one of the n most likely labels is correct.
 Return a boolean answer
@@ -69,3 +85,14 @@ def improved_Accuracy(pred_probs, label_map, testing_label, n):
     improved_accuracy = mean(prediction_scores)
     
     return improved_accuracy
+
+"""
+Calculate and print the performance of a given model
+"""
+
+def modelMetrics(predictions, pred_probs, testing_label, label_map, n, modelName):
+    improved_accuracy = improved_Accuracy(pred_probs, label_map, testing_label, n)
+    accuracy = accuracy_score(testing_label, predictions)
+    ll = log_loss(testing_label, pred_probs, labels=label_map)
+    print(modelName + " Performance:")
+    print("Accuracy: "+"{:.2%}".format(accuracy)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracy)+", Log-Loss: "+"{:.2}".format(ll))

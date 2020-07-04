@@ -2,25 +2,20 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Feb 29 22:27:23 2020
-
 @author: Noah LeFrancois
 @email: noah.lefrancois@mail.mcgill.ca
-
 Using data for each play in Con U's 2019 season (obtained from Hudl), we want to predict 
 their play selection (run/pass, play type, zones targeted) on the next play given input info 
 such as clock, field position, personnel, down&distance, score, etc. 
 """
 
-from sklearn.metrics import accuracy_score
 from sklearn import ensemble
-from sklearn.svm import SVC
 import pandas as pd
 from sklearn import preprocessing
 import DCPredict as DC
+#from sklearn.svm import SVC
 
-
-
-# import warnings filter
+# import warnings filter (I don't think I need this anymore since it was for the BCC)
 from warnings import simplefilter
 # ignore all future warnings
 simplefilter(action='ignore', category=FutureWarning)
@@ -28,6 +23,7 @@ simplefilter(action='ignore', category=FutureWarning)
 
 plotPie = False
 plotImportance = False
+plotConfusion = False
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE', 'ZONE THROWN'
 #Need to add zone thrown to df list of variables in order to use it
 Out = 'PLAY CATEGORY'
@@ -43,11 +39,6 @@ df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST D
 #df = df.replace(np.nan, 'REG', regex=True)
 df['SITUATION (O)'].fillna('REG', inplace=True)
 df = df.dropna()
-
-#I'd like to compute the yards gained, play type, and result from the previous play and add them as an input for the current play
-#df['prevYards'] = prevYards
-#df['prevPlayType'] = prevPlayType
-#df['prevPlayResult'] = prevPlayResult
 
 #Relabel the feature strings to number them so the GBR can read them
 situation = df['SITUATION (O)'].unique().tolist()
@@ -80,8 +71,8 @@ df.replace({'PERS': PERSmapping},inplace=True)
 
 
 
-#Separate into training data set (Con U 2019 Games 1-7) and testing data set (Con U 2019 Game 8)
-training_df = df.sample(frac=0.8, random_state=1)
+#Separate into training data set and testing data set
+training_df = df.sample(frac=0.8, random_state=0)
 indlist=list(training_df.index.values)
 
 testing_df = df.copy().drop(index=indlist)
@@ -118,11 +109,7 @@ gbc.fit(training_features, training_label)
 #max_depth=5 works well for type, value of 2 works well for category
 rfc = ensemble.RandomForestClassifier(n_estimators = 10, max_depth=2, random_state=120)
 rfc.fit(training_features, training_label)
-"""
-#Can get really good (~77.5%) ImpAcc with BC, but bad (~37-40%) Acc 
-bcc = ensemble.BaggingClassifier(base_estimator=SVC(), n_estimators=500, random_state=0, max_samples=50, max_features = 10, bootstrap_features = True)
-bcc.fit(training_features, training_label)
-"""
+
 #Train Extra Trees classifier on the data
 etc = ensemble.ExtraTreesClassifier(n_estimators=500, max_depth=5, random_state=0)
 etc.fit(training_features, training_label)
@@ -156,35 +143,13 @@ label_map = le.classes_
 #Improved Accuracy Score for n top predictions
 n=3
 
-#Accuracy for GBC
-improved_accuracyGB = DC.improved_Accuracy(pred_probsGB, label_map, testing_label, n)
-accuracyGB = accuracy_score(testing_label, predGB)
-print("GBC Performance:")
-print("Accuracy: "+"{:.2%}".format(accuracyGB)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyGB))
-
-#Accuracy for RF
-improved_accuracyRF = DC.improved_Accuracy(pred_probsRF, label_map, testing_label, n)
-accuracyRF = accuracy_score(testing_label, predRF)
-print("RF Performance:")
-print("Accuracy: "+"{:.2%}".format(accuracyRF)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyRF))
-
-#Accuracy for BC
-#improved_accuracyBC = DC.improved_Accuracy(pred_probsBC, label_map, testing_label, n)
-#accuracyBC = accuracy_score(testing_label, predBC)
-#print("BC Performance:")
-#print("Accuracy: "+"{:.2%}".format(accuracyBC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyBC))
-
-#Accuracy for ET
-improved_accuracyET = DC.improved_Accuracy(pred_probsET, label_map, testing_label, n)
-accuracyET = accuracy_score(testing_label, predET)
-print("ET Performance:")
-print("Accuracy: "+"{:.2%}".format(accuracyET)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyET))
-
-#Accuracy for VC
-improved_accuracyVC = DC.improved_Accuracy(pred_probsVC, label_map, testing_label, n)
-accuracyVC = accuracy_score(testing_label, predVC)
-print("Ensemble Performance:")
-print("Accuracy: "+"{:.2%}".format(accuracyVC)+", Improved Accuracy: "+"{:.2%}".format(improved_accuracyVC))
+DC.modelMetrics(predGB, pred_probsGB, testing_label, label_map, n, 'GB')
+DC.modelMetrics(predRF, pred_probsRF, testing_label, label_map, n, 'RF')
+DC.modelMetrics(predET, pred_probsET, testing_label, label_map, n, 'ET')
+DC.modelMetrics(predVC, pred_probsVC, testing_label, label_map, n, 'VC')
 
 #Plot feature importance for both models
 DC.featureImportancePlot(plotImportance, gbc, features)
+
+#Display the confusion matrix
+DC.confusionMatrix(plotConfusion, testing_label, predVC, label_map)
