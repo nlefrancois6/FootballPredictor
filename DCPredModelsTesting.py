@@ -10,14 +10,17 @@ such as clock, field position, personnel, down&distance, score, etc.
 """
 
 from sklearn.metrics import accuracy_score
-from sklearn import ensemble
+from sklearn import ensemble, neighbors
 import pandas as pd
 from sklearn import preprocessing
 import DCPredict as DC
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 
+
+kTest = False
 
 # import warnings filter
 from warnings import simplefilter
@@ -45,22 +48,110 @@ df = df.dropna()
 
 #Specify which playlist sizes to test and make a copy of the original data 
 #from which to draw the test plays
-numPlays = [25, 50, 100, 150, 200, 250, 300, 350, 400]
+#numPlays = [25, 50, 100, 150, 200, 250, 300, 350, 400]
+numPlays = [25, 50, 100, 150]
 dfFull = df.copy()
 
 #Give a list of random number generator seeds to test
 seeds = [0,1,2,3,4,5,6,7,8,9,10]
+
+#Give a list of neighbor sizes to try
+K = np.arange(1,100,1)
 
 #Initialize the arrays used to store the accuracy and time results
 GBacc = np.zeros([len(seeds),2,len(numPlays)])
 RFacc = np.zeros([len(seeds),2,len(numPlays)])
 ETacc = np.zeros([len(seeds),2,len(numPlays)])
 VCacc = np.zeros([len(seeds),2,len(numPlays)])
+KNacc = np.zeros([len(K),2])
 
 trainingTime = np.zeros([len(seeds),1,len(numPlays)])
 
 #Keep track of which seed will be used
 seedIndex = 0
+
+if kTest:
+    situation = df['SITUATION (O)'].unique().tolist()
+    situationmapping = dict( zip(situation,range(len(situation))) )
+    df.replace({'SITUATION (O)': situationmapping},inplace=True)
+
+    defenseTeams = df['DEF TEAM'].unique().tolist()
+    defenseTeamMap = dict( zip(defenseTeams,range(len(defenseTeams))) )
+    df.replace({'DEF TEAM': defenseTeamMap},inplace=True)
+
+    DD = df['D&D'].unique().tolist()
+    DDmapping = dict( zip(DD,range(len(DD))) )
+    df.replace({'D&D': DDmapping},inplace=True)
+
+    FieldZone = df['Field Zone'].unique().tolist()
+    FieldZonemapping = dict( zip(FieldZone,range(len(FieldZone))) )
+    df.replace({'Field Zone': FieldZonemapping},inplace=True)
+
+    HASH = df['HASH'].unique().tolist()
+    HASHmapping = dict( zip(HASH,range(len(HASH))) )
+    df.replace({'HASH': HASHmapping},inplace=True)
+
+    OFFTEAM = df['OFF TEAM'].unique().tolist()
+    OFFTEAMmapping = dict( zip(OFFTEAM,range(len(OFFTEAM))) )
+    df.replace({'OFF TEAM': OFFTEAMmapping},inplace=True)
+
+    PERS = df['PERS'].unique().tolist()
+    PERSmapping = dict( zip(PERS,range(len(PERS))) )
+    df.replace({'PERS': PERSmapping},inplace=True)
+
+
+
+    #Separate into training data set and testing data set
+    training_df = df.sample(frac=0.8, random_state=seeds[0])
+    indlist=list(training_df.index.values)
+    
+    testing_df = df.copy().drop(index=indlist)
+    
+    
+    #Define the features (input) and label (prediction output) for training set
+    features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #', '1ST DN #','D&D','Field Zone','PERS','DEF TEAM']  
+    training_features = training_df[features]
+    #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
+
+    training_label = training_df[Out]
+
+
+    #Define features and label for testing set
+    testing_features = testing_df[features]
+
+    testing_label = testing_df[Out]
+
+    for k in range(0,len(K)):
+        knn = neighbors.KNeighborsClassifier(n_neighbors=K[k])
+        knn.fit(training_features, training_label)
+        
+        predKN = knn.predict(testing_features)
+        pred_probsKN = knn.predict_proba(testing_features) 
+
+        #Get the label mappings for the prediction probabilities
+        le = preprocessing.LabelEncoder()
+        le.fit(training_label)
+        label_map = le.classes_
+
+        #Improved Accuracy Score for n top predictions
+        n=3
+        
+        #Accuracy for KNN
+        improved_accuracyKN = DC.improved_Accuracy(pred_probsKN, label_map, testing_label, n)
+        accuracyKN = accuracy_score(testing_label, predKN)
+        KNacc[k,0] = accuracyKN
+        KNacc[k,1] = improved_accuracyKN
+    
+    fig, (ax1, ax2) = plt.subplots(2,1)
+   
+    ax1.plot(K, KNacc[:,0],'o:')
+    ax1.set(xlabel='Number of Neighbors', ylabel='Accuracy')
+    ax1.set_title('KNN Accuracy')
+   
+    ax2.plot(K, KNacc[:,1],'o:')
+    ax2.set(xlabel='Number of Neighbors', ylabel='Improved Accuracy')
+    ax2.set_title('KNN Accuracy')
+
 
 #Train and test the model for each playlist size
 for s in seeds:
@@ -202,8 +293,6 @@ for s in seeds:
         elapsed = time.time() - t
         trainingTime[seedIndex,0,sizeIndex] = elapsed
     
-        #Plot feature importance for both models
-        DC.featureImportancePlot(plotImportance, gbc, features)
     
         sizeIndex += 1
     

@@ -9,7 +9,7 @@ their play selection (run/pass, play type, zones targeted) on the next play give
 such as clock, field position, personnel, down&distance, score, etc. 
 """
 
-from sklearn import ensemble
+from sklearn import ensemble, neighbors
 import pandas as pd
 from sklearn import preprocessing
 import DCPredict as DC
@@ -27,8 +27,6 @@ plotConfusion = True
 #Need to add zone thrown to df list of variables in order to use it
 Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
-#Currently the data is ordered by field zone so when i split into testing&training sets it's not
-#randomly sampled. Need to either shuffle the csv entries or randomly sample from the df
 df = pd.read_csv("CONUv4.csv")
 
 #Get the variables we care about from the dataframe
@@ -76,8 +74,6 @@ indlist=list(training_df.index.values)
 
 testing_df = df.copy().drop(index=indlist)
 
-#Shouldn't need to filter only run, pass like w/NFL data since we can select only offensive plays (no K or D). Need to make sure we're either excluding or handling dead plays though.
-
 
 #Find the relative frequency of labels as a baseline to compare our play type prediction to
 DC.rawDataPie(Out, plotPie, testing_df)
@@ -113,6 +109,9 @@ rfc.fit(training_features, training_label)
 etc = ensemble.ExtraTreesClassifier(n_estimators=500, max_depth=5, random_state=0)
 etc.fit(training_features, training_label)
 
+#knn = neighbors.KNeighborsClassifier(n_neighbors=29)
+#knn.fit(training_features, training_label)
+
 #Soft Voting Predictor to combine GB and RF
 vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[8, 1, 4])
 vc.fit(training_features, training_label)
@@ -125,11 +124,11 @@ pred_probsGB = gbc.predict_proba(testing_features)
 predRF = rfc.predict(testing_features)
 pred_probsRF = rfc.predict_proba(testing_features)
 
-#predBC = bcc.predict(testing_features)
-#pred_probsBC = bcc.predict_proba(testing_features)
-
 predET = etc.predict(testing_features)
 pred_probsET = etc.predict_proba(testing_features)
+
+#predKN = knn.predict(testing_features)
+#pred_probsKN = knn.predict_proba(testing_features)
 
 predVC = vc.predict(testing_features)
 pred_probsVC = vc.predict_proba(testing_features)
@@ -145,6 +144,7 @@ n=3
 DC.modelMetrics(predGB, pred_probsGB, testing_label, label_map, n, 'GB')
 DC.modelMetrics(predRF, pred_probsRF, testing_label, label_map, n, 'RF')
 DC.modelMetrics(predET, pred_probsET, testing_label, label_map, n, 'ET')
+#DC.modelMetrics(predKN, pred_probsKN, testing_label, label_map, n, 'KNN')
 DC.modelMetrics(predVC, pred_probsVC, testing_label, label_map, n, 'VC')
 
 #Plot feature importance for both models

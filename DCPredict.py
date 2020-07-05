@@ -6,8 +6,8 @@ Created on Mon May  4 09:35:00 2020
 Define the functions necessary for running the offensive play predictor and
 assessing its accuracy.
 """
-from numpy import empty, linspace, isin, mean
-from matplotlib.pyplot import figure, pie, title, subplots_adjust, show, bar, xticks
+from numpy import empty, linspace, isin, mean, arange
+from matplotlib.pyplot import figure, pie, title, subplots_adjust, show, bar, xticks, yticks, xlabel, ylabel
 import pandas as pd
 import seaborn as sn #for confusion matrix
 from sklearn.metrics import confusion_matrix #for confusion matrix
@@ -55,7 +55,12 @@ def confusionMatrix(plotConfusion, testing_label, predictions, label_map):
         figure(figsize=(10,8))
         sn.set(font_scale=1.0) # for label size
         sn.heatmap(df_cm, annot=True, cmap = sn.color_palette("Blues"), annot_kws={"size": 10}) # font size
-
+        tick_marks = arange(len(label_map))
+        xticks(tick_marks, label_map, rotation=90)
+        yticks(tick_marks, label_map, rotation=0)
+        ylabel('True label')
+        xlabel('Predicted label')
+ 
 """
 For a given input play, check whether one of the n most likely labels is correct.
 Return a boolean answer
