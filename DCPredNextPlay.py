@@ -2,20 +2,15 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Feb 29 22:27:23 2020
-
 @author: Noah LeFrancois
 @email: noah.lefrancois@mail.mcgill.ca
-
 Using data for each play in a dataset of past games, we want to predict 
 the offensive play selection (run/pass, play type, zones targeted) on the next play given input info 
 such as score, field position, personnel, down&distance, defensive team, etc. 
-
 New data can be labelled and saved after each play, and this data can be added to re-train the model 
 throughout a game in real-time.
-
 By setting predNextPlay = True, we can take user input for the features of the upcoming play 
 and predict the 3 most likely outcomes.
-
 """
 
 from sklearn.metrics import accuracy_score
@@ -24,6 +19,7 @@ from sklearn.neighbors import _typedefs
 from sklearn.neighbors import _quad_tree
 from sklearn.utils import _cython_blas
 from sklearn.tree import _utils
+from sklearn.model_selection import train_test_split
 #, sparsetools, lgamma 
 #from sklearn.svm import SVC
 import pandas as pd
@@ -33,11 +29,6 @@ import DCPredict as DC
 import PySimpleGUI as sg
 
 
-# import warnings filter
-#from warnings import simplefilter
-# ignore all future warnings
-#simplefilter(action='ignore', category=FutureWarning)
-
 #predNextPlay must be True to run the GUI and in-game predictor
 plotPie = False
 plotImportance = False
@@ -45,8 +36,6 @@ predNextPlay = True
 #Allowed Outputs: 'PLAY CATEGORY','PLAY TYPE'
 Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
-#Currently the data is ordered by field zone so when i split into testing&training sets it's not
-#randomly sampled. Need to either shuffle the csv entries or randomly sample from the df
 df = pd.read_csv('DCpredictordata.csv')
 
 #Get the variables we care about from the dataframe
@@ -104,38 +93,13 @@ Outcomes = df[Out].unique().tolist()
 OutcomeMapping = dict( zip(Outcomes,range(len(Outcomes))) )
 
 
-#Separate into training data set (Con U 2019 Games 1-7) and testing data set (Con U 2019 Game 8)
-#Random state is a seeding number
-training_df = df.sample(frac=0.8, random_state=1)
-indlist=list(training_df.index.values)
-
-testing_df = df.copy().drop(index=indlist)
-
-
-#Find the relative frequency of labels as a baseline to compare our play type prediction to
-DC.rawDataPie(Out, plotPie, testing_df)
 
 features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','PERS','OFF TEAM', 'DEF TEAM']
 columnLabels = features.copy()
 columnLabels.append(Out)
 #Define the features (input) and label (prediction output) for training set
-training_features = training_df[features]
+training_features, testing_features, training_label, testing_label = train_test_split(df[features], df[Out], test_size=0.2, random_state=0, stratify=df[Out])
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
-
-
-if Out == 'PLAY TYPE':
-    training_label = training_df['PLAY TYPE']
-elif Out == 'PLAY CATEGORY':
-    training_label = training_df['PLAY CATEGORY']
-
-
-#Define features and label for testing set
-testing_features = testing_df[features]
-
-if Out == 'PLAY TYPE':
-    testing_label = testing_df['PLAY TYPE']
-elif Out == 'PLAY CATEGORY':
-    testing_label = testing_df['PLAY CATEGORY']
 
 
 
@@ -198,10 +162,7 @@ accuracyET = accuracy_score(testing_label, predET)
 improved_accuracyVC = DC.improved_Accuracy(pred_probsVC, label_map, testing_label, n)
 accuracyVC = accuracy_score(testing_label, predVC)
 
-
-#Plot feature importance for both models
-#DC.featureImportancePlot(plotImportance, gbc, features)
-
+#Run the GUI program
 if predNextPlay == True:
     #LightBrown13, LightGrey5, LightBlue3, Topanga, LightGrey5, DarkBlack1
     sg.theme('DarkBlack1')
@@ -444,6 +405,3 @@ if predNextPlay == True:
                 print("No new data has been added yet.")
                 
     window.close()
-    
-    
-

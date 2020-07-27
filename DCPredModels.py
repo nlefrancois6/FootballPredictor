@@ -9,7 +9,8 @@ their play selection (run/pass, play type, zones targeted) on the next play give
 such as clock, field position, personnel, down&distance, score, etc. 
 """
 
-from sklearn import ensemble, neighbors
+from sklearn import ensemble 
+from sklearn.model_selection import train_test_split
 import pandas as pd
 from sklearn import preprocessing
 import DCPredict as DC
@@ -27,11 +28,16 @@ plotConfusion = True
 #Need to add zone thrown to df list of variables in order to use it
 Out = 'PLAY CATEGORY'
 #Load the play data for the desired columns into a dataframe
-df = pd.read_csv("CONUv4.csv")
+#CONU_SHERB, CONUv5
+df = pd.read_csv("CONU_SHERB.csv")
 
 #Get the variables we care about from the dataframe
 df = df[['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','PLAY CATEGORY','PLAY TYPE','DEF TEAM']]
 
+#Select specific subsections of the data set, ie just one specific offensive team  
+#SHER, CONU       
+#df.drop(df[df['OFF TEAM'] != 'CONU'].index, inplace=True)
+         
 #Handle empty entries
 #df = df.replace(np.nan, 'REG', regex=True)
 df['SITUATION (O)'].fillna('REG', inplace=True)
@@ -67,30 +73,13 @@ PERSmapping = dict( zip(PERS,range(len(PERS))) )
 df.replace({'PERS': PERSmapping},inplace=True)
 
 
-
-#Separate into training data set and testing data set
-training_df = df.sample(frac=0.8, random_state=0)
-indlist=list(training_df.index.values)
-
-testing_df = df.copy().drop(index=indlist)
-
-
-#Find the relative frequency of labels as a baseline to compare our play type prediction to
-DC.rawDataPie(Out, plotPie, testing_df)
-
-
 #Define the features (input) and label (prediction output) for training set
-features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #', '1ST DN #','D&D','Field Zone','PERS','DEF TEAM']  
-training_features = training_df[features]
+features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #', '1ST DN #','D&D','Field Zone','PERS','DEF TEAM','OFF TEAM']  
+training_features, testing_features, training_label, testing_label = train_test_split(df[features], df[Out], test_size=0.2, random_state=0, stratify=df[Out])
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
 
-training_label = training_df[Out]
-
-
-#Define features and label for testing set
-testing_features = testing_df[features]
-
-testing_label = testing_df[Out]
+#Find the relative frequency of labels as a baseline to compare our play type prediction to
+DC.rawDataPie(Out, plotPie, testing_label)
 
 
 #Train a Gradient Boosting Machine on the data

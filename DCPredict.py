@@ -16,11 +16,11 @@ from sklearn.metrics import accuracy_score, log_loss #for modelMetrics
 """
 Produce a pie chart showing the raw data for the chosen output variable
 """
-def rawDataPie(Out, plotPie, testing_df):
+def rawDataPie(Out, plotPie, testing_label):
     if plotPie == True:
-        playCat = testing_df[Out].unique().tolist()
+        playCat = testing_label.unique().tolist()
         #playCatmapping = dict( zip(playCat,range(len(playCat))) )
-        rel_freq = testing_df[Out].value_counts()
+        rel_freq = testing_label.value_counts()
         labelList = []
         for label in range(0,len(playCat)):
             labelList.append(rel_freq.index[label])
