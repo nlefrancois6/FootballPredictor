@@ -10,7 +10,6 @@ such as clock, field position, personnel, down&distance, score, etc.
 """
 
 from sklearn import ensemble 
-from sklearn.model_selection import train_test_split
 import pandas as pd
 from sklearn import preprocessing
 import DCPredict as DC
@@ -75,8 +74,30 @@ df.replace({'PERS': PERSmapping},inplace=True)
 
 #Define the features (input) and label (prediction output) for training set
 features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #', '1ST DN #','D&D','Field Zone','PERS','DEF TEAM','OFF TEAM']  
-training_features, testing_features, training_label, testing_label = train_test_split(df[features], df[Out], test_size=0.2, random_state=0, stratify=df[Out])
+#This only works if each category has 2 or more occurences. Might need to go back
+#to the original method of random sampling to make the train and test sets
+#training_features, testing_features, training_label, testing_label = train_test_split(df[features], df[Out], test_size=0.2, random_state=0, stratify=df[Out])
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
+
+#Separate the training and testing sets
+
+#This only works if each category has 2 or more occurences. 
+#training_features, testing_features, training_label, testing_label = train_test_split(df[features], df[Out], test_size=0.2, random_state=0, stratify=df[Out])
+#Instead use the original method of random sampling to make the train/test sets
+
+training_df = df.sample(frac=0.8, random_state=1)
+indlist=list(training_df.index.values)
+
+testing_df = df.copy().drop(index=indlist)
+
+#Define the features (input) and label (prediction output) for training set
+training_features = training_df[features]
+training_label = training_df[Out]
+
+#Define features and label for testing set
+testing_features = testing_df[features]
+testing_label = testing_df[Out]
+
 
 #Find the relative frequency of labels as a baseline to compare our play type prediction to
 DC.rawDataPie(Out, plotPie, testing_label)
@@ -86,23 +107,23 @@ DC.rawDataPie(Out, plotPie, testing_label)
 #Using 500 for category, 200 for type roughly maximizes accuracy so far
 #Default max_depth is 3, which works well for type, but a value of 1 gives 
 #better results for category
-gbc = ensemble.GradientBoostingClassifier(n_estimators = 500, learning_rate = 0.02, max_depth=1)
+gbc = ensemble.GradientBoostingClassifier(n_estimators = 100, learning_rate = 0.1, max_depth=1)
 gbc.fit(training_features, training_label)
 
 #Train a Random Forest Machine on the data
 #max_depth=5 works well for type, value of 2 works well for category
-rfc = ensemble.RandomForestClassifier(n_estimators = 10, max_depth=2, random_state=120)
+rfc = ensemble.RandomForestClassifier(n_estimators = 140, max_depth=4, random_state=120)
 rfc.fit(training_features, training_label)
 
 #Train Extra Trees classifier on the data
-etc = ensemble.ExtraTreesClassifier(n_estimators=500, max_depth=5, random_state=0)
+etc = ensemble.ExtraTreesClassifier(n_estimators=1200, max_depth=8, random_state=0)
 etc.fit(training_features, training_label)
 
 #knn = neighbors.KNeighborsClassifier(n_neighbors=29)
 #knn.fit(training_features, training_label)
 
 #Soft Voting Predictor to combine GB and RF
-vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[8, 1, 4])
+vc = ensemble.VotingClassifier(estimators=[('GB', gbc), ('RF', rfc), ('ET', etc)], voting='soft', weights=[1,4,1])
 vc.fit(training_features, training_label)
 
 
@@ -127,6 +148,10 @@ le = preprocessing.LabelEncoder()
 le.fit(training_label)
 label_map = le.classes_
 
+leTest = preprocessing.LabelEncoder()
+leTest.fit(testing_label)
+label_mapTest = leTest.classes_
+
 #Improved Accuracy Score for n top predictions
 n=3
 
@@ -140,4 +165,4 @@ DC.modelMetrics(predVC, pred_probsVC, testing_label, label_map, n, 'VC')
 DC.featureImportancePlot(plotImportance, gbc, features)
 
 #Display the confusion matrix
-DC.confusionMatrix(plotConfusion, testing_label, predVC, label_map)
+DC.confusionMatrix(plotConfusion, testing_label, predVC, label_map, label_mapTest)

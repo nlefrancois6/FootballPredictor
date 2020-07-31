@@ -19,7 +19,6 @@ from sklearn.neighbors import _typedefs
 from sklearn.neighbors import _quad_tree
 from sklearn.utils import _cython_blas
 from sklearn.tree import _utils
-from sklearn.model_selection import train_test_split
 #, sparsetools, lgamma 
 #from sklearn.svm import SVC
 import pandas as pd
@@ -97,10 +96,26 @@ OutcomeMapping = dict( zip(Outcomes,range(len(Outcomes))) )
 features = ['QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','PERS','OFF TEAM', 'DEF TEAM']
 columnLabels = features.copy()
 columnLabels.append(Out)
-#Define the features (input) and label (prediction output) for training set
-training_features, testing_features, training_label, testing_label = train_test_split(df[features], df[Out], test_size=0.2, random_state=0, stratify=df[Out])
 #'QTR','SCORE DIFF. (O)','SITUATION (O)','DRIVE #','DRIVE PLAY #','1ST DN #','D&D','Field Zone','HASH','OFF TEAM','PERS','OFF FORM','BACKF SET','DEF TEAM','DEF PERSONNEL'
 
+#Separate the training and testing sets
+
+#This only works if each category has 2 or more occurences. 
+#training_features, testing_features, training_label, testing_label = train_test_split(df[features], df[Out], test_size=0.2, random_state=0, stratify=df[Out])
+#Instead use the original method of random sampling to make the train/test sets
+
+training_df = df.sample(frac=0.8, random_state=1)
+indlist=list(training_df.index.values)
+
+testing_df = df.copy().drop(index=indlist)
+
+#Define the features (input) and label (prediction output) for training set
+training_features = training_df[features]
+training_label = training_df[Out]
+
+#Define features and label for testing set
+testing_features = testing_df[features]
+testing_label = testing_df[Out]
 
 
 #Train a Gradient Boosting Machine on the data

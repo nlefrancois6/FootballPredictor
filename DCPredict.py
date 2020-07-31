@@ -47,17 +47,17 @@ def featureImportancePlot(plotImportance, gbc, features):
 Produce the confusion matrix for a model
 """   
     
-def confusionMatrix(plotConfusion, testing_label, predictions, label_map):
+def confusionMatrix(plotConfusion, testing_label, predictions, label_map, label_mapTest):
     if plotConfusion == True:
         cmArray = confusion_matrix(testing_label, predictions)
 
-        df_cm = pd.DataFrame(cmArray, range(len(label_map)), range(len(label_map)))
+        df_cm = pd.DataFrame(cmArray, range(len(label_mapTest)), range(len(label_mapTest)))
         figure(figsize=(10,8))
         sn.set(font_scale=1.0) # for label size
         sn.heatmap(df_cm, annot=True, cmap = sn.color_palette("Blues"), annot_kws={"size": 10}) # font size
         tick_marks = arange(len(label_map))
-        xticks(tick_marks, label_map, rotation=90)
-        yticks(tick_marks, label_map, rotation=0)
+        xticks(tick_marks, label_mapTest, rotation=90)
+        yticks(tick_marks, label_mapTest, rotation=0)
         ylabel('True label')
         xlabel('Predicted label')
  
